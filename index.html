@@ -1,0 +1,1062 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
+<title>DASH 예약 관리</title>
+<style>
+  /* 색은 앱 디자인 시스템(brandBlue·neutralGray·typo·background) 값. 상태색(ok·warn·danger)만 이 화면 것. */
+  :root {
+    color-scheme: light dark;
+    --bg: #f1f4fc; --panel: #ffffff; --surface: #f1f4fc; --muted: #eef0f4; --line: #e2e4e8; --line-strong: #c6cad2;
+    --text: #2e3238; --title: #061f55; --sub: #5b6371;
+    --accent: #3973f0; --accent-soft: #e3ebfd; --primary: #1154e4; --primary-hover: #0d42b4; --link: #1154e4;
+    --ok: #18794e; --ok-soft: #e3f5ec; --warn: #b45309; --warn-soft: #fef3c7; --danger: #c62828; --danger-soft: #fdecec;
+    --card-line: transparent; --shadow: 0 1px 2px rgba(31, 51, 97, .05), 0 6px 20px rgba(31, 51, 97, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101316; --panel: #17191c; --surface: #1f2227; --muted: #24272d; --line: #2e3238; --line-strong: #444a54;
+      --text: #e2e4e8; --title: #f1f4fc; --sub: #aab0bb;
+      --accent: #6794f4; --accent-soft: #1e2d4b; --primary: #3973f0; --primary-hover: #1154e4; --link: #97b5f7;
+      --ok: #6fcf9f; --ok-soft: #173326; --warn: #f2b25c; --warn-soft: #3a2c12; --danger: #f28b82; --danger-soft: #3b1c1c;
+      --card-line: #2e3238; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3, h4, p { margin: 0; }
+  h1 { font-size: 16px; font-weight: 700; color: var(--title); }
+  h2 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--title); line-height: 1.3; }
+  h3 { font-size: 16px; font-weight: 700; color: var(--title); }
+  h4 { font-size: 14px; font-weight: 700; color: var(--text); }
+  .brand { color: var(--link); font-weight: 800; letter-spacing: .02em; }
+  .hint { font-size: 13px; color: var(--sub); }
+
+  /* 버튼: 기본(회색) · primary · danger · ghost · link. 배경은 --b, 올렸을 때는 --bh. */
+  button, input, select { font: inherit; color: inherit; }
+  button {
+    --b: var(--muted); --bh: var(--line);
+    appearance: none; border: 0; background: var(--b); color: var(--text); border-radius: 10px; height: 38px; padding: 0 14px;
+    font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  button:hover:not(:disabled) { background: var(--bh); }
+  button:disabled { opacity: .5; cursor: default; }
+  button.primary { --b: var(--primary); --bh: var(--primary-hover); color: #fff; }
+  button.danger { --b: var(--danger-soft); --bh: var(--danger-soft); color: var(--danger); }
+  button.danger:hover:not(:disabled) { box-shadow: inset 0 0 0 1.5px var(--danger); }
+  button.ghost { --b: transparent; --bh: var(--accent-soft); color: var(--link); padding: 0 10px; }
+  button.small { height: 30px; font-size: 13px; border-radius: 8px; }
+  button.icon { width: 34px; height: 34px; padding: 0; color: var(--sub); font-size: 15px; }
+  button.link { --b: none; --bh: none; height: auto; padding: 0; color: var(--link); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+
+  input, select {
+    width: 100%; min-width: 0; height: 38px; padding: 0 12px;
+    border: 1px solid var(--line-strong); border-radius: 10px; background: var(--panel);
+  }
+  input[type=radio] { width: 18px; height: 18px; flex: none; margin: 0; padding: 0; accent-color: var(--primary); }
+  input::placeholder { color: var(--sub); opacity: .7; }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  label { display: grid; gap: 6px; align-content: start; font-size: 13px; font-weight: 500; color: var(--sub); }
+  label > input, label > select { color: var(--text); font-size: 15px; font-weight: 400; }
+  label > .hint { font-weight: 400; }
+
+  header {
+    position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap;
+    padding: 10px max(16px, calc((100vw - 1040px) / 2 + 16px));
+    background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  header .spacer { flex: 1; }
+  header .who { font-size: 13px; color: var(--sub); margin-left: 6px; }
+  .live { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--sub); margin-right: 2px; }
+  .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+  .live.stale::before { background: var(--danger); }
+  .banner { background: var(--warn-soft); color: var(--warn); padding: 8px max(16px, calc((100vw - 1040px) / 2 + 16px)); font-size: 13px; }
+  .banner.danger { background: var(--danger-soft); color: var(--danger); }
+
+  main { max-width: 1040px; margin: 0 auto; padding: 20px 16px 56px; display: grid; gap: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--card-line); border-radius: 16px; box-shadow: var(--shadow);
+    padding: 20px; display: grid; gap: 16px; min-width: 0;
+  }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+  .title-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .inline { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+  .inline > label { flex: 0 1 200px; }
+  dialog .inline > label { flex: 1 1 140px; }
+  .fields { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 12px; }
+  .fields > .wide { grid-column: span 2; }
+  .section { display: grid; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+
+  .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 2px; margin: -2px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    --b: var(--panel); --bh: var(--accent-soft);
+    flex: none; height: auto; display: grid; gap: 1px; text-align: left; padding: 9px 16px; border-radius: 12px; font-weight: 400;
+  }
+  .tab b { font-size: 15px; font-weight: 700; color: var(--title); }
+  .tab small { font-size: 12.5px; color: var(--sub); }
+  .tab.paused small { color: var(--danger); }
+  .tab[aria-selected=true] { --b: var(--primary); --bh: var(--primary); }
+  .tab[aria-selected=true] b { color: #fff; }
+  .tab[aria-selected=true] small { color: rgba(255, 255, 255, .85); }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 2px 10px;
+    font-size: 12.5px; font-weight: 600; background: var(--muted); color: var(--sub); white-space: nowrap;
+  }
+  .badge.dot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge.ok { background: var(--ok-soft); color: var(--ok); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .badge.danger { background: var(--danger-soft); color: var(--danger); }
+  .chip { padding: 3px 6px 3px 12px; gap: 8px; color: var(--text); }
+  .chip button { font-size: 12px; color: var(--sub); }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .stat { background: var(--surface); border-radius: 12px; padding: 12px 14px; display: grid; gap: 2px; align-content: start; min-width: 0; }
+  .stat .k { font-size: 12.5px; font-weight: 500; color: var(--sub); }
+  .stat .v { font-size: 19px; font-weight: 700; letter-spacing: -.01em; color: var(--title); line-height: 1.35; }
+  .stat .v small { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--sub); }
+  .stat .s { font-size: 12.5px; color: var(--sub); }
+  .meter { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 7px; }
+  .meter > i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+
+  .blocks { display: grid; }
+  .block { display: grid; grid-template-columns: 184px minmax(0, 1fr); gap: 10px 20px; align-items: start; padding: 16px 0; border-top: 1px solid var(--line); }
+  .block:last-child { padding-bottom: 0; }
+  .block-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 4px; justify-items: start; align-items: center; }
+  .block-head b { font-size: 16px; font-weight: 700; color: var(--title); }
+  .block-head button { grid-area: 1 / 2; }
+  .block-head .badge, .block-head .hint { grid-column: 1 / -1; }
+  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 8px; }
+  .slot {
+    --b: var(--surface); --bh: var(--accent-soft);
+    position: relative; overflow: hidden; height: auto; display: grid; gap: 1px; text-align: left;
+    padding: 8px 11px 12px; border: 1.5px solid transparent; border-radius: 10px; font-weight: 400;
+  }
+  .slot b { font-size: 14px; font-weight: 600; }
+  .slot small { font-size: 12.5px; color: var(--sub); }
+  .slot > i { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
+  .slot.full { --b: var(--accent-soft); }
+  .slot.full small { color: var(--link); font-weight: 600; }
+  .slot.closed { --b: var(--muted); --bh: var(--line); }
+  .slot.closed b { color: var(--sub); text-decoration: line-through; }
+  .slot.past { opacity: .55; }
+  .slot.stray { border: 1.5px dashed var(--line-strong); }
+  .legend { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--sub); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend span::before { content: ""; width: 14px; height: 14px; border-radius: 4px; background: var(--surface); border: 1.5px solid transparent; }
+  .legend .full::before { background: var(--accent-soft); box-shadow: inset 0 -3px 0 var(--accent); }
+  .legend .closed::before { background: var(--muted); border-color: var(--line); }
+  .legend .stray::before { border: 1.5px dashed var(--line-strong); }
+
+  .note { border-radius: 12px; padding: 12px 14px; font-size: 14px; background: var(--surface); }
+  .note.warn { background: var(--warn-soft); color: var(--warn); }
+  .note.danger { background: var(--danger-soft); color: var(--danger); }
+  .note ul { margin: 6px 0 0; padding-left: 18px; }
+  .note .actions { margin-top: 12px; }
+  .empty { background: var(--surface); border-radius: 12px; padding: 18px 14px; text-align: center; font-size: 14px; color: var(--sub); }
+
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { padding-top: 0; color: var(--sub); font-weight: 500; font-size: 12.5px; }
+  th:first-child, td:first-child { padding-left: 0; }
+  th:last-child, td:last-child { padding-right: 0; }
+  tbody tr:last-child td { border-bottom: 0; padding-bottom: 0; }
+  td.wrap { white-space: normal; min-width: 220px; }
+  td.name { font-weight: 600; }
+
+  dialog {
+    border: 1px solid var(--card-line); border-radius: 20px; padding: 0; background: var(--panel); color: var(--text);
+    width: min(480px, calc(100vw - 24px)); box-shadow: 0 24px 60px rgba(3, 14, 38, .28);
+  }
+  dialog::backdrop { background: rgba(3, 14, 38, .45); }
+  .dialog-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; padding: 18px 14px 14px 20px; }
+  dialog .body { padding: 0 20px 20px; display: grid; gap: 16px; }
+  .radio { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; font-weight: 400; color: var(--text); }
+  .radio > input:not([type=radio]) { flex: 1 1 130px; width: auto; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 20; max-width: calc(100vw - 32px);
+    background: var(--title); color: var(--bg); border-radius: 12px; padding: 11px 16px; font-size: 14px; font-weight: 600;
+    box-shadow: 0 8px 24px rgba(3, 14, 38, .25); display: none;
+  }
+  #toast.error { background: #c62828; color: #fff; }
+  .login { max-width: 400px; padding-top: 10vh; }
+  .login .card { padding: 28px 24px; }
+  .login form { display: grid; gap: 14px; }
+  .login form button { height: 42px; margin-top: 2px; }
+  .login form p:empty { display: none; }
+  .login .link { justify-self: start; }
+
+  @media (max-width: 900px) {
+    .fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .fields > .wide { grid-column: 1 / -1; }
+  }
+  @media (max-width: 720px) {
+    /* iOS Safari 는 16px 보다 작은 입력에 초점이 가면 화면을 확대한다. */
+    input, select, label > input, label > select { font-size: 16px; }
+    header { position: static; }
+    main { padding-top: 16px; }
+    .card { padding: 16px; }
+    .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .block { grid-template-columns: minmax(0, 1fr); }
+    .block-head { gap: 4px 10px; }
+    .block-head button { justify-self: end; }
+    .block-head .badge { grid-area: 2 / 1; }
+    .block-head .hint { grid-area: 2 / 2; }
+    .inline > label { flex: 1 1 150px; }
+    .slots { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+    .slot { padding: 7px 8px 11px; }
+    .slot b { font-size: 13px; }
+    /* 좁은 화면에서는 표를 줄 단위 목록으로 바꾼다. */
+    .stack thead { display: none; }
+    .stack tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .stack tbody tr:first-child { padding-top: 0; }
+    .stack tbody tr:last-child { border-bottom: 0; padding-bottom: 0; }
+    .stack td { display: block; border: 0; padding: 0; white-space: normal; min-width: 0; }
+    .stack td.wrap { flex-basis: 100%; }
+    .stack td.meta { font-size: 12.5px; color: var(--sub); }
+    .people td:nth-child(3) { flex-basis: 100%; order: 3; }
+    .people td.meta { order: 4; }
+    .people td.meta::before { content: "예약한 때 "; }
+    .log td:nth-child(4) { order: 1; }
+    .log td:nth-child(3) { order: 2; color: var(--sub); }
+    .log td:nth-child(5) { order: 3; }
+    .log td.meta { order: 4; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" role="status"></div>
+<script>
+'use strict';
+
+// ---------------------------------------------------------------------
+// 접속 정보. publishable 키는 공개돼도 되는 키다(앱에도 들어 있다). 관리 RPC 는 로그인 + 서버 허용 목록으로 막는다.
+// 로컬 스택으로 볼 때: index.html?api=http://127.0.0.1:55321&key=<publishable key>
+// ---------------------------------------------------------------------
+const PRODUCTION = { api: 'https://etjabethpbbzlwvlazez.supabase.co', key: 'sb_publishable_1LsT_Pym_Q0M0mzfJOj7Gg_oMjX4Op4' };
+const query = new URLSearchParams(location.search);
+// api 값은 이 컴퓨터 주소만 받는다. 아무 주소나 받으면 만든 링크 하나로 로그인 정보를 남의 서버로 보낼 수 있다.
+function localOverride() {
+  try {
+    const url = new URL(query.get('api'));
+    if (!['http:', 'https:'].includes(url.protocol) || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return null;
+    return { api: url.origin, key: query.get('key') || PRODUCTION.key };
+  } catch { return null; }
+}
+const OVERRIDE = query.get('api') ? localOverride() : null;
+const OVERRIDE_REJECTED = Boolean(query.get('api')) && !OVERRIDE;
+const CONFIG = OVERRIDE || PRODUCTION;
+const IS_PRODUCTION = CONFIG.api === PRODUCTION.api;
+const SESSION_KEY = 'dash-reservation-admin:' + CONFIG.api;
+const POLL_MS = 10000;
+
+const MESSAGES = {
+  not_admin: '이 계정에는 권한이 없습니다.',
+  target_not_found: '예약 대상을 찾을 수 없습니다.',
+  invalid_window: '운영 시간을 확인하세요. 끝이 시작보다 늦고 예약 간격 하나 이상이어야 합니다.',
+  invalid_slot_minutes: '예약 간격은 1–480분이어야 합니다.',
+  invalid_capacity: '정원을 0 이상의 숫자로 넣으세요. 비워 둘 수 없습니다.',
+  invalid_open_rule: '예약 오픈 규칙을 확인하세요. 묶음은 1–1440분, 리드는 0분 이상입니다.',
+  invalid_experience_minutes: '체험 시간은 1–480분이어야 합니다.',
+  invalid_max_active: '최대 예약 수는 1 이상이어야 합니다.',
+  account_not_found: '그 이메일로 가입한 계정이 없습니다. 먼저 계정을 만들어야 합니다.',
+  cannot_revoke_self: '자기 운영진 권한은 뺄 수 없습니다.',
+  invalid_credentials: '이메일 또는 비밀번호가 맞지 않습니다.',
+  email_not_confirmed: '이메일 확인이 끝나지 않았습니다. 받은 메일의 링크를 누른 뒤 다시 로그인하세요.',
+  user_already_exists: '이미 가입한 이메일입니다. 로그인하세요.',
+  weak_password: '비밀번호가 너무 짧습니다.',
+  over_email_send_rate_limit: '확인 메일을 너무 자주 보냈습니다. 잠시 뒤 다시 시도하세요.',
+  session_expired: '로그인이 만료됐습니다. 다시 로그인하세요.',
+  network: '서버에 연결하지 못했습니다.',
+};
+
+const ACTIONS = {
+  regenerate_slots: '시간표 다시 만들기', set_capacity: '정원 변경', set_opens_at: '오픈 시각 변경',
+  set_experience_minutes: '체험 시간 변경', set_target_open: '예약 중단·재개', set_max_active: '최대 예약 수 변경',
+  grant: '권한 추가', revoke: '권한 회수',
+};
+
+// ---------------------------------------------------------------------
+// 시각. 입력·표시는 브라우저 시간대와 상관없이 항상 한국 시간.
+// ---------------------------------------------------------------------
+const clockFormat = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const dateFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' });
+const clock = value => clockFormat.format(new Date(value));
+const day = value => dateFormat.format(new Date(value));
+const shortDay = value => { const [, month, date] = day(value).split('-'); return `${Number(month)}/${Number(date)}`; };
+const stamp = value => `${shortDay(value)} ${clock(value)}`;
+const range = (from, to) => `${clock(from)}–${clock(to)}`;
+const kst = (date, time) => (date && /^\d\d:\d\d$/.test(time) ? `${date}T${time}:00+09:00` : null);
+const ms = value => (typeof value === 'number' ? value : Date.parse(value));
+
+// ---------------------------------------------------------------------
+// DOM
+// ---------------------------------------------------------------------
+function h(tag, props, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props || {})) {
+    if (value === null || value === undefined || value === false) continue;
+    if (key === 'class') node.className = value;
+    else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+    else if (key === 'value') node.value = value;
+    else if (value === true) node.setAttribute(key, '');
+    else node.setAttribute(key, value);
+  }
+  for (const child of children.flat(Infinity)) {
+    if (child === null || child === undefined || child === false) continue;
+    node.append(child instanceof Node ? child : String(child));
+  }
+  return node;
+}
+
+let toastTimer;
+function toast(message, isError) {
+  const node = document.getElementById('toast');
+  node.textContent = message;
+  node.className = isError ? 'error' : '';
+  node.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { node.style.display = 'none'; }, isError ? 6000 : 2500);
+}
+const explain = error => MESSAGES[error.code] || error.message || MESSAGES.network;
+
+// ---------------------------------------------------------------------
+// 서버 (GoTrue + PostgREST 를 fetch 로 직접 부른다)
+// ---------------------------------------------------------------------
+let session = null;
+try { session = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { session = null; }
+
+function saveSession(next) {
+  session = next;
+  try {
+    if (next) localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+    else localStorage.removeItem(SESSION_KEY);
+  } catch { /* 저장소를 못 쓰면 이번 탭에서만 로그인 상태를 유지한다 */ }
+}
+
+class ApiError extends Error {
+  constructor(code, message, status) { super(message || code); this.code = code; this.status = status; }
+}
+
+async function request(path, { method = 'GET', body, token } = {}) {
+  let response;
+  try {
+    response = await fetch(CONFIG.api + path, {
+      method,
+      headers: {
+        apikey: CONFIG.key,
+        Accept: 'application/json',
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new ApiError('network');
+  }
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+  if (!response.ok) {
+    // PostgREST 는 message 에, GoTrue 는 error_code 에 코드가 온다.
+    const code = (data && (data.error_code || data.message || data.msg)) || 'network';
+    throw new ApiError(code, data && (data.msg || data.message), response.status);
+  }
+  return data;
+}
+
+function sessionFrom(data) {
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresAt: Date.now() + data.expires_in * 1000,
+    email: data.user && data.user.email,
+  };
+}
+
+async function signIn(email, password) {
+  saveSession(sessionFrom(await request('/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password } })));
+}
+
+// 이메일 확인이 켜져 있으면 세션 없이 돌아온다 → false.
+async function signUp(email, password) {
+  const data = await request('/auth/v1/signup', { method: 'POST', body: { email, password } });
+  if (!data.access_token) return false;
+  saveSession(sessionFrom(data));
+  return true;
+}
+
+let refreshing = null;
+async function accessToken() {
+  if (!session) throw new ApiError('session_expired');
+  if (session.expiresAt - Date.now() > 60000) return session.accessToken;
+  // 다른 탭이 먼저 갱신했으면 그 세션을 쓴다(갱신 토큰은 한 번만 쓸 수 있다).
+  try {
+    const stored = JSON.parse(localStorage.getItem(SESSION_KEY));
+    if (stored && stored.expiresAt - Date.now() > 60000) { session = stored; return session.accessToken; }
+  } catch { /* 저장소를 못 읽으면 그대로 갱신한다 */ }
+  refreshing = refreshing || request('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: session.refreshToken } })
+    .then(data => { saveSession(sessionFrom(data)); })
+    .finally(() => { refreshing = null; });
+  try {
+    await refreshing;
+  } catch (error) {
+    if (error.code === 'network') throw error;
+    saveSession(null);
+    throw new ApiError('session_expired');
+  }
+  return session.accessToken;
+}
+
+async function authed(path, options) {
+  try {
+    return await request(path, { ...options, token: await accessToken() });
+  } catch (error) {
+    if (error.status === 401 || error.code === 'session_expired') {
+      saveSession(null);
+      render();
+      throw new ApiError('session_expired');
+    }
+    throw error;
+  }
+}
+const rpc = (name, params) => authed('/rest/v1/rpc/' + name, { method: 'POST', body: params || {} });
+const rows = path => authed('/rest/v1/' + path);
+
+async function signOut() {
+  const token = session && session.accessToken;
+  saveSession(null);
+  state = initialState();
+  render();
+  if (token) request('/auth/v1/logout', { method: 'POST', token }).catch(() => {});
+}
+
+// ---------------------------------------------------------------------
+// 상태
+// ---------------------------------------------------------------------
+function initialState() {
+  return {
+    me: null, targets: [], slots: [], reservations: [], accounts: [], log: [],
+    selected: null, // 대상 id 또는 'settings'
+    loadedAt: null, loadError: null,
+    preview: null, // { key, result }
+    form: null, // 시간표 설정 입력값(대상을 고를 때 서버 값으로 채운다)
+  };
+}
+let state = initialState();
+
+const visibleTargets = () => state.targets.filter(target => state.me.is_organizer || state.me.target_ids.includes(target.id));
+const selectedTarget = () => state.targets.find(target => target.id === state.selected) || null;
+const slotsOf = target => state.slots.filter(slot => slot.target_id === target.id);
+const targetTitle = id => (state.targets.find(target => target.id === id) || {}).title || '(지워진 대상)';
+
+function formFor(target) {
+  const start = target.window_start, end = target.window_end;
+  const fallback = state.targets.find(other => other.window_start);
+  return {
+    date: start ? day(start) : fallback ? day(fallback.window_start) : '',
+    from: start ? clock(start) : '13:00',
+    to: end ? clock(end) : '18:00',
+    slotMinutes: String(target.slot_minutes),
+    capacity: target.default_capacity === null ? '' : String(target.default_capacity),
+    opensAll: target.open_lead_minutes === null,
+    blockMinutes: String(target.open_block_minutes),
+    leadMinutes: String(target.open_lead_minutes === null ? 60 : target.open_lead_minutes),
+    experience: target.experience_minutes === null ? '' : String(target.experience_minutes),
+  };
+}
+
+function select(id) {
+  state.selected = id;
+  state.preview = null;
+  state.reservations = [];
+  const target = selectedTarget();
+  state.form = target ? formFor(target) : null;
+}
+
+async function load() {
+  if (!session) return;
+  try {
+    state.me = await rpc('admin_me');
+    if (!state.me.email) state.me.email = session.email;
+    const hasAccess = state.me.is_organizer || state.me.target_ids.length > 0;
+    if (hasAccess) {
+      [state.targets, state.slots] = await Promise.all([
+        rows('reservation_targets?select=*&kind=eq.booth&order=title'),
+        rows('reservation_slots?select=*&order=starts_at'),
+      ]);
+      const visible = visibleTargets();
+      if (state.selected !== 'settings' && !visible.some(target => target.id === state.selected)) {
+        select(visible.length ? visible[0].id : null);
+      }
+      const target = selectedTarget();
+      const tasks = [rpc('admin_log', { p_limit: 100 }).then(log => { state.log = log; })];
+      if (target) tasks.push(rpc('admin_reservations', { p_target_id: target.id }).then(list => { state.reservations = list; }));
+      if (state.me.is_organizer) tasks.push(rpc('admin_accounts').then(accounts => { state.accounts = accounts; }));
+      await Promise.all(tasks);
+    }
+    state.loadedAt = Date.now();
+    state.loadError = null;
+  } catch (error) {
+    if (error.code === 'session_expired') return;
+    state.loadError = explain(error);
+  }
+}
+
+// 변경 RPC 를 부르고 다시 읽는다.
+async function run(label, task) {
+  try {
+    const result = await task();
+    await load();
+    render();
+    if (label) toast(label);
+    return result;
+  } catch (error) {
+    toast(explain(error), true);
+    return undefined;
+  }
+}
+
+// ---------------------------------------------------------------------
+// 화면
+// ---------------------------------------------------------------------
+const app = document.getElementById('app');
+let openDialog = null;
+
+function render() {
+  const keep = document.activeElement && document.activeElement.id;
+  const strip = app.querySelector('.tabs');
+  const stripLeft = strip ? strip.scrollLeft : 0;
+  const views = session ? (state.me ? mainView() : [loadingView()]) : [loginView()];
+  app.replaceChildren(...views.flat(Infinity).filter(Boolean));
+  // 주기적으로 다시 그려도 탭 줄의 가로 스크롤 위치를 지킨다.
+  const nextStrip = app.querySelector('.tabs');
+  if (nextStrip) nextStrip.scrollLeft = stripLeft;
+  if (keep) { const node = document.getElementById(keep); if (node) node.focus(); }
+}
+
+const brand = tag => h(tag, {}, h('span', { class: 'brand' }, 'DASH'), ' 예약 관리');
+const OVERRIDE_NOTE = '주소의 api 값은 이 컴퓨터(localhost) 주소만 쓸 수 있습니다. 운영 서버에 연결했습니다.';
+
+function loadingView() {
+  return h('main', { class: 'login' }, h('div', { class: 'card' },
+    state.loadError ? [h('p', { class: 'note danger' }, state.loadError), h('div', { class: 'actions' },
+      h('button', { class: 'primary', onclick: refresh }, '다시 시도'), h('button', { onclick: signOut }, '로그아웃'))] : h('p', { class: 'hint' }, '불러오는 중…')));
+}
+
+let loginMode = 'in';
+function loginView() {
+  const email = h('input', { type: 'email', id: 'login-email', autocomplete: 'username', required: true });
+  const password = h('input', { type: 'password', id: 'login-password', autocomplete: loginMode === 'in' ? 'current-password' : 'new-password', required: true, minlength: 8 });
+  const message = h('p', { class: 'hint', role: 'status' });
+  const submit = h('button', { class: 'primary', type: 'submit' }, loginMode === 'in' ? '로그인' : '계정 만들기');
+  const form = h('form', {
+    onsubmit: async event => {
+      event.preventDefault();
+      submit.disabled = true;
+      try {
+        if (loginMode === 'in') {
+          await signIn(email.value.trim(), password.value);
+        } else if (!(await signUp(email.value.trim(), password.value))) {
+          message.textContent = '확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 여기서 로그인하세요.';
+          loginMode = 'in';
+          submit.textContent = '로그인';
+          submit.disabled = false;
+          return;
+        }
+        render();
+        await refresh();
+      } catch (error) {
+        message.textContent = explain(error);
+        submit.disabled = false;
+      }
+    },
+  },
+  h('label', {}, '이메일', email),
+  h('label', {}, '비밀번호', password),
+  submit, message);
+  return h('main', { class: 'login' }, h('div', { class: 'card' },
+    h('div', {},
+      brand('h2'),
+      h('p', { class: 'hint' }, loginMode === 'in'
+        ? '운영진·체험 부스 팀 계정으로 로그인합니다.'
+        : '계정을 만든 뒤 운영진이 권한을 줘야 쓸 수 있습니다.')),
+    form,
+    h('button', { class: 'link', onclick: () => { loginMode = loginMode === 'in' ? 'up' : 'in'; render(); } },
+      loginMode === 'in' ? '계정이 없으면 만들기' : '이미 계정이 있으면 로그인'),
+    OVERRIDE_REJECTED ? h('p', { class: 'note warn' }, OVERRIDE_NOTE) : null,
+    IS_PRODUCTION ? null : h('p', { class: 'note warn' }, '테스트 서버: ' + CONFIG.api)));
+}
+
+function mainView() {
+  const me = state.me;
+  const hasAccess = me.is_organizer || me.target_ids.length > 0;
+  const header = h('header', {},
+    brand('h1'),
+    h('span', { class: 'badge' }, me.is_organizer ? '운영진' : hasAccess ? '팀 계정' : '권한 없음'),
+    h('span', { class: 'spacer' }),
+    state.loadedAt ? h('span', { class: 'live' + (state.loadError ? ' stale' : '') }, clockFormat.format(new Date(state.loadedAt)) + ' 기준') : null,
+    h('button', { class: 'ghost', onclick: refresh }, '새로고침'),
+    h('span', { class: 'who' }, me.email || ''),
+    h('button', { class: 'ghost', onclick: signOut }, '로그아웃'));
+  const banners = [
+    IS_PRODUCTION ? null : h('div', { class: 'banner' }, '테스트 서버에 연결돼 있습니다: ' + CONFIG.api),
+    OVERRIDE_REJECTED ? h('div', { class: 'banner' }, OVERRIDE_NOTE) : null,
+    state.loadError ? h('div', { class: 'banner danger' }, '최신 내용을 불러오지 못했습니다: ' + state.loadError) : null,
+  ];
+  if (!hasAccess) {
+    return [header, ...banners, h('main', { class: 'login' }, h('div', { class: 'card' },
+      h('h2', {}, '아직 권한이 없습니다'),
+      h('p', {}, `운영진에게 이 계정(${me.email || ''})에 부스 권한을 달라고 요청하세요.`),
+      h('div', { class: 'actions' }, h('button', { class: 'primary', onclick: refresh }, '다시 확인'))))];
+  }
+  const tabs = h('div', { class: 'tabs', role: 'tablist' },
+    visibleTargets().map(target => {
+      const slots = slotsOf(target);
+      const reserved = slots.reduce((sum, slot) => sum + slot.reserved_count, 0);
+      return h('button', { class: 'tab' + (target.is_open ? '' : ' paused'), role: 'tab', 'aria-selected': String(state.selected === target.id), onclick: () => choose(target.id) },
+        h('b', {}, target.title),
+        h('small', {}, `예약 ${reserved}명${target.is_open ? '' : ' · 중단'}`));
+    }),
+    me.is_organizer ? h('button', { class: 'tab', role: 'tab', 'aria-selected': String(state.selected === 'settings'), onclick: () => choose('settings') },
+      h('b', {}, '전체 설정'), h('small', {}, '계정 · 변경 기록')) : null);
+  const target = selectedTarget();
+  return [header, ...banners, h('main', {}, tabs, state.selected === 'settings' ? settingsView() : target ? targetView(target) : null)];
+}
+
+async function refresh() {
+  await load();
+  render();
+}
+
+async function choose(id) {
+  select(id);
+  render();
+  await refresh();
+}
+
+// ----- 대상 -----
+
+function capacityText(capacity) { return `${capacity}명`; }
+
+function blocksOf(target, slots) {
+  if (!slots.length) return [];
+  const base = ms(target.window_start || slots[0].starts_at);
+  const size = target.open_block_minutes * 60000;
+  const blocks = new Map();
+  for (const slot of slots) {
+    const index = Math.floor((ms(slot.starts_at) - base) / size);
+    if (!blocks.has(index)) blocks.set(index, { from: base + index * size, to: base + (index + 1) * size, slots: [] });
+    blocks.get(index).slots.push(slot);
+  }
+  return [...blocks.entries()].sort((a, b) => a[0] - b[0]).map(entry => entry[1]);
+}
+
+// 마지막으로 만든 시간표에 들어맞지 않는 슬롯(예약이 있어 남은 이전 슬롯).
+function isStray(target, slot) {
+  if (!target.window_start) return false;
+  const start = ms(slot.starts_at), end = ms(slot.ends_at), step = target.slot_minutes * 60000;
+  return start < ms(target.window_start) || end > ms(target.window_end) || end - start !== step || (start - ms(target.window_start)) % step !== 0;
+}
+
+function openState(opensAt) {
+  if (opensAt === null) return { text: '바로 열림', tone: 'ok' };
+  return ms(opensAt) <= Date.now() ? { text: `${stamp(opensAt)}에 열림`, tone: 'ok' } : { text: `${stamp(opensAt)} 오픈 예정`, tone: 'warn' };
+}
+
+// 아직 열리지 않은 슬롯 가운데 가장 먼저 열리는 묶음.
+function nextOpening(slots) {
+  const now = Date.now();
+  const waiting = slots.filter(slot => slot.opens_at !== null && ms(slot.opens_at) > now);
+  if (!waiting.length) return null;
+  const at = Math.min(...waiting.map(slot => ms(slot.opens_at)));
+  const group = waiting.filter(slot => ms(slot.opens_at) === at);
+  return { at, from: Math.min(...group.map(slot => ms(slot.starts_at))), to: Math.max(...group.map(slot => ms(slot.ends_at))) };
+}
+
+function stat(label, value, sub, extra) {
+  return h('div', { class: 'stat' }, h('span', { class: 'k' }, label), h('span', { class: 'v' }, value), sub ? h('span', { class: 's' }, sub) : null, extra);
+}
+
+function targetView(target) {
+  const slots = slotsOf(target);
+  const reserved = slots.reduce((sum, slot) => sum + slot.reserved_count, 0);
+  const total = slots.reduce((sum, slot) => sum + slot.capacity, 0);
+  const next = nextOpening(slots);
+
+  const summary = h('div', { class: 'card' },
+    h('div', { class: 'card-head' },
+      h('div', { class: 'title-line' },
+        h('h2', {}, target.title),
+        h('span', { class: 'badge dot ' + (target.is_open ? 'ok' : 'danger') }, target.is_open ? '예약 받는 중' : '예약 중단')),
+      h('button', { class: target.is_open ? 'danger' : 'primary', onclick: () => run(target.is_open ? '예약을 중단했습니다' : '예약을 다시 받습니다',
+        () => rpc('admin_set_target_open', { p_target_id: target.id, p_is_open: !target.is_open })) },
+      target.is_open ? '예약 중단' : '예약 재개')),
+    target.is_open ? null : h('p', { class: 'note danger' }, '중단 중에는 새 예약과 시간 변경을 받지 않습니다. 이미 한 예약의 조회·취소는 됩니다.'),
+    h('div', { class: 'stats' },
+      stat('예약', [String(reserved), h('small', {}, slots.length ? ` / ${total}명` : '명')], null,
+        h('div', { class: 'meter' }, h('i', { style: `width:${total ? Math.min(100, Math.round(reserved / total * 100)) : 0}%` }))),
+      stat('운영 시간', target.window_start ? range(target.window_start, target.window_end) : '시간표 없음',
+        [target.window_start ? shortDay(target.window_start) : null, `${target.slot_minutes}분 간격`, slots.length ? `슬롯 ${slots.length}개` : null].filter(Boolean).join(' · ')),
+      stat('체험 시간', target.experience_minutes === null ? '미정' : `${target.experience_minutes}분`, '방문객에게 안내하는 소요시간'),
+      stat('다음 예약 오픈', next ? stamp(next.at) : slots.length ? '모두 열림' : '시간표 없음', next ? `${range(next.from, next.to)} 시간대` : null)));
+
+  return [
+    summary,
+    slotsCard(target, slots),
+    configCard(target),
+    reservationsCard(target),
+    logCard(state.log.filter(entry => entry.target_id === target.id), '이 대상의 변경 기록'),
+  ];
+}
+
+function slotsCard(target, slots) {
+  const now = Date.now();
+  const blocks = blocksOf(target, slots);
+  return h('div', { class: 'card' },
+    h('div', { class: 'card-head' },
+      h('h3', {}, '시간대별 현황'),
+      h('span', { class: 'hint' }, '슬롯을 누르면 정원과 예약자를, 수정을 누르면 시간대의 오픈 시각·정원을 봅니다')),
+    slots.length ? null : h('p', { class: 'empty' }, '슬롯이 없습니다. 아래 시간표 설정에서 만드세요.'),
+    blocks.length ? h('div', { class: 'blocks' }, blocks.map(block => {
+      const opens = [...new Set(block.slots.map(slot => slot.opens_at))];
+      const state_ = opens.length === 1 ? openState(opens[0]) : { text: '슬롯마다 오픈 시각이 다름', tone: 'warn' };
+      const reserved = block.slots.reduce((sum, slot) => sum + slot.reserved_count, 0);
+      const capacities = [...new Set(block.slots.map(slot => slot.capacity))];
+      return h('div', { class: 'block' },
+        h('div', { class: 'block-head' },
+          h('b', {}, range(block.from, block.to)),
+          h('span', { class: 'badge dot ' + state_.tone }, state_.text),
+          h('span', { class: 'hint' }, `예약 ${reserved}명 · 슬롯당 ${capacities.length === 1 ? capacityText(capacities[0]) : '정원 제각각'}`),
+          h('button', { class: 'ghost small', 'aria-label': `${range(block.from, block.to)} 시간대 수정`, onclick: () => blockDialog(target, block) }, '수정')),
+        h('div', { class: 'slots' }, block.slots.map(slot => {
+          const full = slot.capacity !== null && slot.reserved_count >= slot.capacity;
+          const classes = ['slot', slot.capacity === 0 ? 'closed' : full ? 'full' : '', ms(slot.starts_at) <= now ? 'past' : '', isStray(target, slot) ? 'stray' : ''];
+          const filled = slot.capacity ? Math.min(100, Math.round(slot.reserved_count / slot.capacity * 100)) : 0;
+          return h('button', { class: classes.join(' '), title: isStray(target, slot) ? '예약이 있어 남은 이전 시간표 슬롯' : null, onclick: () => slotDialog(target, slot) },
+            h('b', {}, range(slot.starts_at, slot.ends_at)),
+            h('small', {}, slot.capacity === 0 ? `닫힘 · 예약 ${slot.reserved_count}` : `${slot.reserved_count} / ${slot.capacity}명${full ? ' · 마감' : ''}`),
+            filled ? h('i', { style: `width:${filled}%` }) : null);
+        })));
+    })) : null,
+    slots.length ? h('div', { class: 'legend' },
+      h('span', {}, '예약 가능'), h('span', { class: 'full' }, '마감'), h('span', { class: 'closed' }, '닫힘(정원 0)'),
+      h('span', { class: 'stray' }, '예약이 있어 남은 이전 시간표 슬롯')) : null,
+    blocks.length > 1 ? h('p', { class: 'hint' }, '이웃한 시간대의 오픈 시각이 같으면 앱에서는 한 묶음으로 합쳐 보입니다.') : null);
+}
+
+function field(label, input, hint, wide) {
+  return h('label', { class: wide ? 'wide' : null }, label, input, hint ? h('span', { class: 'hint' }, hint) : null);
+}
+
+function configCard(target) {
+  const form = state.form;
+  const bind = (key, props) => h('input', { ...props, id: 'form-' + key, value: form[key], oninput: event => { form[key] = event.target.value; state.preview = null; updatePreview(); } });
+  const opensAll = h('select', { id: 'form-opensAll', onchange: event => { form.opensAll = event.target.value === 'all'; state.preview = null; render(); } },
+    h('option', { value: 'rule', selected: !form.opensAll }, '시간대 시작 전에 차례로 열기'),
+    h('option', { value: 'all', selected: form.opensAll }, '모든 시간대를 처음부터 열기'));
+  const box = h('div', { id: 'preview-box' });
+
+  function params(dryRun) {
+    return {
+      p_target_id: target.id,
+      p_from: kst(form.date, form.from),
+      p_to: kst(form.date, form.to),
+      p_slot_minutes: Number(form.slotMinutes),
+      p_capacity: form.capacity.trim() === '' ? null : Number(form.capacity),
+      p_open_block_minutes: Number(form.blockMinutes),
+      p_open_lead_minutes: form.opensAll ? null : Number(form.leadMinutes),
+      p_dry_run: dryRun,
+    };
+  }
+  const key = () => JSON.stringify(params(false));
+
+  const previewButton = h('button', { onclick: async () => {
+    if (form.capacity.trim() === '') { toast(MESSAGES.invalid_capacity, true); return; }
+    try {
+      state.preview = { key: key(), result: await rpc('admin_regenerate_slots', params(true)) };
+      updatePreview();
+    } catch (error) { toast(explain(error), true); }
+  } }, '바뀌는 내용 미리 보기');
+
+  function updatePreview() {
+    const from = kst(form.date, form.from), to = kst(form.date, form.to), step = Number(form.slotMinutes);
+    const children = [];
+    if (from && to && step >= 1 && ms(to) > ms(from)) {
+      const count = Math.floor((ms(to) - ms(from)) / (step * 60000));
+      const leftover = (ms(to) - ms(from)) / 60000 - count * step;
+      children.push(h('p', { class: 'note' }, [
+        `${form.from}–${form.to}에 ${step}분 슬롯 ${count}개`,
+        leftover ? `끝의 ${leftover}분은 슬롯이 되지 않음` : null,
+        form.opensAll ? '전부 처음부터 열림' : `첫 ${form.blockMinutes}분은 바로 열리고, 이후는 ${form.blockMinutes}분 단위로 시작 ${form.leadMinutes}분 전에 열림`,
+      ].filter(Boolean).join(' · ')));
+    }
+    const preview = state.preview && state.preview.key === key() ? state.preview.result : null;
+    if (preview) {
+      const stray = preview.kept.filter(slot => !slot.aligned);
+      children.push(h('div', { class: 'note ' + (preview.kept.length ? 'warn' : '') },
+        h('b', {}, `새 슬롯 ${preview.created}개를 만들고, 예약 없는 기존 슬롯 ${preview.removed}개를 지웁니다.`),
+        h('ul', {},
+          preview.kept.length ? h('li', {}, `확정 예약이 있는 슬롯 ${preview.kept.length}개는 시각을 그대로 둡니다: ` + preview.kept.map(slot => `${range(slot.starts_at, slot.ends_at)}(${slot.reserved_count}명)`).join(', ')) : null,
+          stray.length ? h('li', {}, `그중 ${stray.length}개는 새 시간표와 어긋난 채 남습니다. 겹치는 새 슬롯 ${preview.skipped - (preview.kept.length - stray.length)}개는 만들지 않습니다.`) : null,
+          h('li', {}, '손으로 고친 정원과 오픈 시각은 모두 위 규칙 값으로 돌아갑니다.'),
+          h('li', {}, '지금 앱에서 시간을 고르던 방문객은 다시 불러와야 합니다.')),
+        h('div', { class: 'actions' },
+          h('button', { class: 'primary', onclick: async () => {
+            const result = await run('시간표를 다시 만들었습니다', () => rpc('admin_regenerate_slots', params(false)));
+            if (result) { select(target.id); await refresh(); }
+          } }, '이대로 적용'),
+          h('button', { onclick: () => { state.preview = null; updatePreview(); } }, '취소'))));
+    }
+    // 적용 버튼이 보이는 동안에는 미리 보기 버튼을 강조하지 않는다.
+    previewButton.className = preview ? '' : 'primary';
+    box.style.display = children.length ? 'grid' : 'none';
+    box.style.gap = '10px';
+    box.replaceChildren(...children);
+  }
+  updatePreview();
+
+  const experienceWarning = form.experience !== '' && Number(form.experience) > Number(form.slotMinutes);
+  return h('div', { class: 'card' },
+    h('h3', {}, '시간표 설정'),
+    h('div', { class: 'section' },
+      h('div', {},
+        h('h4', {}, '체험 시간'),
+        h('p', { class: 'hint' }, '방문객에게 안내하는 소요시간입니다. 슬롯은 바뀌지 않습니다.')),
+      h('div', { class: 'inline' },
+        field('실제 체험 시간(분)', bind('experience', { type: 'number', min: 1, max: 480, placeholder: '미정' })),
+        h('button', { onclick: () => run('체험 시간을 저장했습니다', async () => {
+          await rpc('admin_set_experience_minutes', { p_target_id: target.id, p_minutes: form.experience.trim() === '' ? null : Number(form.experience) });
+        }) }, '체험 시간 저장')),
+      experienceWarning ? h('p', { class: 'note warn' }, '체험 시간이 예약 간격보다 깁니다. 앞뒤 예약이 겹칩니다.') : null),
+    h('div', { class: 'section' },
+      h('div', {},
+        h('h4', {}, '예약 시간대 · 정원 · 오픈 규칙'),
+        h('p', { class: 'hint' }, '바꾸면 슬롯을 다시 만듭니다. 적용 전에 바뀌는 내용을 먼저 보여 줍니다.')),
+      h('div', { class: 'fields' },
+        field('날짜', bind('date', { type: 'date' }), null, true),
+        field('운영 시작', bind('from', { type: 'time', step: 300 })),
+        field('운영 끝', bind('to', { type: 'time', step: 300 })),
+        field('예약 간격(분)', bind('slotMinutes', { type: 'number', min: 1, max: 480 })),
+        field('슬롯당 정원(명)', bind('capacity', { type: 'number', min: 0 }))),
+      h('div', { class: 'fields' },
+        field('예약 오픈', opensAll, null, true),
+        form.opensAll ? null : field('시간대 길이(분)', bind('blockMinutes', { type: 'number', min: 1, max: 1440 })),
+        form.opensAll ? null : field('시작 몇 분 전에 열기', bind('leadMinutes', { type: 'number', min: 0 }))),
+      box,
+      h('div', { class: 'actions' },
+        previewButton,
+        h('button', { class: 'ghost', onclick: () => { state.form = formFor(target); state.preview = null; render(); } }, '서버 값으로 되돌리기'))));
+}
+
+function reservationsCard(target) {
+  const list = state.reservations;
+  return h('div', { class: 'card' },
+    h('div', { class: 'card-head' },
+      h('h3', {}, `예약자 명단 (${list.length}명)`),
+      h('span', { class: 'hint' }, '확정 예약만, 시간순')),
+    list.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'stack people' },
+      h('thead', {}, h('tr', {}, h('th', {}, '시간'), h('th', {}, '이름'), h('th', {}, '전화번호'), h('th', {}, '예약한 때'))),
+      h('tbody', {}, list.map(item => h('tr', {},
+        h('td', {}, range(item.starts_at, item.ends_at)), h('td', { class: 'name' }, item.visitor_name),
+        h('td', {}, phone(item.visitor_phone)), h('td', { class: 'meta' }, stamp(item.created_at)))))))
+      : h('p', { class: 'empty' }, '아직 예약이 없습니다.'));
+}
+
+function phone(digits) {
+  const match = /^(01\d)(\d{3,4})(\d{4})$/.exec(digits);
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : digits;
+}
+
+// ----- 다이얼로그 -----
+
+function showDialog(title, subtitle, ...children) {
+  const dialog = h('dialog', {},
+    h('div', { class: 'dialog-head' },
+      h('div', {}, h('h2', {}, title), h('p', { class: 'hint' }, subtitle)),
+      h('button', { class: 'ghost icon', 'aria-label': '닫기', onclick: () => dialog.close() }, '✕')),
+    h('div', { class: 'body' }, children));
+  dialog.addEventListener('close', () => { dialog.remove(); openDialog = null; });
+  dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+  document.body.append(dialog);
+  openDialog = dialog;
+  dialog.showModal();
+  return dialog;
+}
+
+function capacityInput(value) {
+  return h('input', { type: 'number', min: 0, value: value === null || value === undefined ? '' : String(value) });
+}
+const CAPACITY_HINT = '0이면 예약을 받지 않습니다';
+// 정원은 숫자가 있어야 한다(비우면 앱이 예약 버튼을 숨긴다). 잘못이면 안내하고 undefined.
+function capacityValue(input) {
+  const text = input.value.trim();
+  if (text === '' || !(Number(text) >= 0) || !Number.isInteger(Number(text))) { toast(MESSAGES.invalid_capacity, true); return undefined; }
+  return Number(text);
+}
+
+function blockDialog(target, block) {
+  const opens = [...new Set(block.slots.map(slot => slot.opens_at))];
+  const current = opens.length === 1 ? opens[0] : block.slots[0].opens_at;
+  const now = h('input', { type: 'radio', name: 'open', checked: current === null });
+  const at = h('input', { type: 'radio', name: 'open', checked: current !== null });
+  const date = h('input', { type: 'date', value: day(current || block.from) });
+  const time = h('input', { type: 'time', step: 300, value: clock(current || block.from - (target.open_lead_minutes || 60) * 60000) });
+  const pick = () => { at.checked = true; };
+  date.addEventListener('input', pick);
+  time.addEventListener('input', pick);
+  const capacities = [...new Set(block.slots.map(slot => slot.capacity))];
+  const capacity = capacityInput(capacities.length === 1 ? capacities[0] : undefined);
+  const slotRange = { p_target_id: target.id, p_from: new Date(block.from).toISOString(), p_to: new Date(block.to).toISOString() };
+  const dialog = showDialog(
+    `${range(block.from, block.to)} 시간대`,
+    `${target.title} · 슬롯 ${block.slots.length}개`,
+    h('div', { class: 'section' },
+      h('h4', {}, '예약 오픈 시각'),
+      h('label', { class: 'radio' }, now, '바로 열림'),
+      h('label', { class: 'radio' }, at, '정한 시각에 열기', date, time),
+      h('div', { class: 'actions' }, h('button', { class: 'primary', onclick: async () => {
+        const opensAt = now.checked ? null : kst(date.value, time.value);
+        if (!now.checked && !opensAt) { toast('오픈 날짜와 시각을 넣으세요.', true); return; }
+        dialog.close();
+        await run('오픈 시각을 바꿨습니다', () => rpc('admin_set_opens_at', { ...slotRange, p_opens_at: opensAt }));
+      } }, '오픈 시각 저장'))),
+    h('div', { class: 'section' },
+      h('h4', {}, '이 시간대 슬롯당 정원'),
+      h('div', { class: 'inline' }, field('정원(명)', capacity),
+        h('button', { class: 'primary', onclick: async () => {
+          const value = capacityValue(capacity);
+          if (value === undefined) return;
+          dialog.close();
+          await run('정원을 바꿨습니다', () => rpc('admin_set_capacity', { ...slotRange, p_capacity: value }));
+        } }, `슬롯 ${block.slots.length}개에 적용`)),
+      h('p', { class: 'hint' }, `${CAPACITY_HINT}.`)));
+}
+
+function slotDialog(target, slot) {
+  const capacity = capacityInput(slot.capacity);
+  const people = state.reservations.filter(item => item.slot_id === slot.id);
+  const state_ = openState(slot.opens_at);
+  const dialog = showDialog(
+    range(slot.starts_at, slot.ends_at),
+    `${target.title} · 예약 ${slot.reserved_count}명 · ${state_.text}`,
+    h('div', { class: 'section' },
+      h('h4', {}, '이 슬롯 정원'),
+      h('div', { class: 'inline' }, field('정원(명)', capacity),
+        h('button', { class: 'primary', onclick: async () => {
+          const value = capacityValue(capacity);
+          if (value === undefined) return;
+          dialog.close();
+          await run('정원을 바꿨습니다', () => rpc('admin_set_capacity', {
+            p_target_id: target.id, p_from: slot.starts_at, p_to: slot.ends_at, p_capacity: value,
+          }));
+        } }, '저장')),
+      h('p', { class: 'hint' }, `${CAPACITY_HINT}. 줄여도 이미 한 예약은 유지됩니다.`)),
+    h('div', { class: 'section' },
+      h('h4', {}, `예약자 ${people.length}명`),
+      people.length ? h('table', {}, h('tbody', {}, people.map(item => h('tr', {}, h('td', { class: 'name' }, item.visitor_name), h('td', {}, phone(item.visitor_phone))))))
+        : h('p', { class: 'empty' }, '예약자가 없습니다.')));
+}
+
+// ----- 전체 설정 (운영진) -----
+
+function settingsView() {
+  const max = h('input', { type: 'number', min: 1, id: 'max-active', value: String(state.me.max_active_per_visitor) });
+  const email = h('input', { type: 'email', id: 'grant-email', placeholder: '가입한 이메일' });
+  const scope = h('select', { id: 'grant-scope' },
+    state.targets.map(target => h('option', { value: target.id }, target.title)),
+    h('option', { value: '' }, '운영진 (모든 대상 · 계정 관리)'));
+  const chip = (label, account, targetID) => h('span', { class: 'badge chip' }, label,
+    h('button', { class: 'link', title: '권한 빼기', 'aria-label': `${account.email} ${label} 권한 빼기`,
+      onclick: () => run('권한을 뺐습니다', () => rpc('admin_revoke', { p_email: account.email, p_target_id: targetID })) }, '빼기'));
+  return [
+    h('div', { class: 'card' },
+      h('div', {},
+        h('h3', {}, '방문객 한 명이 동시에 가질 수 있는 예약 수'),
+        h('p', { class: 'hint' }, '아직 끝나지 않은 예약 기준입니다.')),
+      h('div', { class: 'inline' }, field('최대 예약 수', max),
+        h('button', { onclick: () => run('최대 예약 수를 바꿨습니다', () => rpc('admin_set_max_active', { p_max: Number(max.value) })) }, '저장'))),
+    h('div', { class: 'card' },
+      h('h3', {}, '계정 권한'),
+      h('div', { class: 'table-wrap' }, h('table', { class: 'stack' },
+        h('thead', {}, h('tr', {}, h('th', {}, '계정'), h('th', {}, '권한'))),
+        h('tbody', {}, state.accounts.map(account => h('tr', {},
+          h('td', { class: 'name' }, account.email),
+          h('td', { class: 'wrap' }, h('div', { class: 'actions' },
+            account.is_organizer ? chip('운영진', account, null) : null,
+            account.target_ids.map(id => chip(targetTitle(id), account, id)),
+            !account.is_organizer && !account.target_ids.length ? h('span', { class: 'badge warn' }, '권한 없음') : null))))))),
+      h('div', { class: 'section' },
+        h('h4', {}, '권한 주기'),
+        h('div', { class: 'inline' },
+          field('계정 이메일', email), field('권한', scope),
+          h('button', { class: 'primary', onclick: () => {
+            if (!email.value.trim()) { toast('이메일을 넣으세요.', true); return; }
+            run('권한을 줬습니다', () => rpc('admin_grant', { p_email: email.value.trim(), p_target_id: scope.value || null }));
+          } }, '권한 주기')),
+        h('p', { class: 'hint' }, '계정은 먼저 로그인 화면의 "계정이 없으면 만들기"나 Supabase 대시보드(Authentication → Users)에서 만들어야 합니다.'))),
+    logCard(state.log, '변경 기록'),
+  ];
+}
+
+function logDetail(entry) {
+  const detail = entry.detail || {};
+  switch (entry.action) {
+    case 'regenerate_slots':
+      return `${stamp(detail.from)}–${clock(detail.to)}, ${detail.slot_minutes}분 간격, 정원 ${capacityText(detail.capacity)}, `
+        + (detail.open_lead_minutes === null ? '전부 바로 열림' : `${detail.open_block_minutes}분 묶음 ${detail.open_lead_minutes}분 전 오픈`)
+        + ` → 새 슬롯 ${detail.created}개, 남긴 슬롯 ${detail.kept}개`;
+    case 'set_capacity': return `${range(detail.from, detail.to)} 슬롯 ${detail.slots}개 정원 ${capacityText(detail.capacity)}`;
+    case 'set_opens_at': return `${range(detail.from, detail.to)} 슬롯 ${detail.slots}개 ${detail.opens_at === null ? '바로 열림' : stamp(detail.opens_at) + ' 오픈'}`;
+    case 'set_experience_minutes': return detail.minutes === null ? '미정' : `${detail.minutes}분`;
+    case 'set_target_open': return detail.is_open ? '예약 재개' : '예약 중단';
+    case 'set_max_active': return `${detail.max}건`;
+    case 'grant': case 'revoke': return detail.email || '';
+    default: return '';
+  }
+}
+
+function logCard(entries, title) {
+  return h('div', { class: 'card' },
+    h('h3', {}, title),
+    entries.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'stack log' },
+      h('thead', {}, h('tr', {}, h('th', {}, '때'), h('th', {}, '계정'), h('th', {}, '대상'), h('th', {}, '변경'), h('th', {}, '내용'))),
+      h('tbody', {}, entries.slice(0, 50).map(entry => h('tr', {},
+        h('td', { class: 'meta' }, stamp(entry.at)), h('td', { class: 'meta' }, entry.email || ''),
+        h('td', {}, entry.target_id ? targetTitle(entry.target_id) : entry.action === 'grant' || entry.action === 'revoke' ? '운영진' : '전체'),
+        h('td', { class: 'name' }, ACTIONS[entry.action] || entry.action), h('td', { class: 'wrap' }, logDetail(entry)))))))
+      : h('p', { class: 'empty' }, '아직 기록이 없습니다.'));
+}
+
+// ---------------------------------------------------------------------
+// 시작 · 주기적 새로고침. 입력 중이거나 다이얼로그가 열려 있으면 화면을 다시 그리지 않는다.
+// ---------------------------------------------------------------------
+function isEditing() {
+  const active = document.activeElement;
+  return Boolean(openDialog) || Boolean(state.preview) || (active && ['INPUT', 'SELECT'].includes(active.tagName));
+}
+
+setInterval(async () => {
+  if (!session || !state.me || document.hidden) return;
+  await load();
+  if (!isEditing()) render();
+}, POLL_MS);
+
+render();
+if (session) refresh();
+</script>
+</body>
+</html>
