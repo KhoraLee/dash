@@ -196,7 +196,6 @@
   .login form { display: grid; gap: 14px; }
   .login form button { height: 42px; margin-top: 2px; }
   .login form p:empty { display: none; }
-  .login .link { justify-self: start; }
 
   @media (max-width: 900px) {
     .fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -276,9 +275,6 @@ const MESSAGES = {
   cannot_revoke_self: '자기 운영진 권한은 뺄 수 없습니다.',
   invalid_credentials: '이메일 또는 비밀번호가 맞지 않습니다.',
   email_not_confirmed: '이메일 확인이 끝나지 않았습니다. 받은 메일의 링크를 누른 뒤 다시 로그인하세요.',
-  user_already_exists: '이미 가입한 이메일입니다. 로그인하세요.',
-  weak_password: '비밀번호가 너무 짧습니다.',
-  over_email_send_rate_limit: '확인 메일을 너무 자주 보냈습니다. 잠시 뒤 다시 시도하세요.',
   session_expired: '로그인이 만료됐습니다. 다시 로그인하세요.',
   network: '서버에 연결하지 못했습니다.',
 };
@@ -389,14 +385,6 @@ function sessionFrom(data) {
 
 async function signIn(email, password) {
   saveSession(sessionFrom(await request('/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password } })));
-}
-
-// 이메일 확인이 켜져 있으면 세션 없이 돌아온다 → false.
-async function signUp(email, password) {
-  const data = await request('/auth/v1/signup', { method: 'POST', body: { email, password } });
-  if (!data.access_token) return false;
-  saveSession(sessionFrom(data));
-  return true;
 }
 
 let refreshing = null;
@@ -557,26 +545,17 @@ function loadingView() {
       h('button', { class: 'primary', onclick: refresh }, '다시 시도'), h('button', { onclick: signOut }, '로그아웃'))] : h('p', { class: 'hint' }, '불러오는 중…')));
 }
 
-let loginMode = 'in';
 function loginView() {
   const email = h('input', { type: 'email', id: 'login-email', autocomplete: 'username', required: true });
-  const password = h('input', { type: 'password', id: 'login-password', autocomplete: loginMode === 'in' ? 'current-password' : 'new-password', required: true, minlength: 8 });
+  const password = h('input', { type: 'password', id: 'login-password', autocomplete: 'current-password', required: true });
   const message = h('p', { class: 'hint', role: 'status' });
-  const submit = h('button', { class: 'primary', type: 'submit' }, loginMode === 'in' ? '로그인' : '계정 만들기');
+  const submit = h('button', { class: 'primary', type: 'submit' }, '로그인');
   const form = h('form', {
     onsubmit: async event => {
       event.preventDefault();
       submit.disabled = true;
       try {
-        if (loginMode === 'in') {
-          await signIn(email.value.trim(), password.value);
-        } else if (!(await signUp(email.value.trim(), password.value))) {
-          message.textContent = '확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 여기서 로그인하세요.';
-          loginMode = 'in';
-          submit.textContent = '로그인';
-          submit.disabled = false;
-          return;
-        }
+        await signIn(email.value.trim(), password.value);
         render();
         await refresh();
       } catch (error) {
@@ -591,12 +570,8 @@ function loginView() {
   return h('main', { class: 'login' }, h('div', { class: 'card' },
     h('div', {},
       brand('h2'),
-      h('p', { class: 'hint' }, loginMode === 'in'
-        ? '운영진·체험 부스 팀 계정으로 로그인합니다.'
-        : '계정을 만든 뒤 운영진이 권한을 줘야 쓸 수 있습니다.')),
+      h('p', { class: 'hint' }, '운영진·체험 부스 팀 계정으로 로그인합니다. 계정은 운영진이 만들어 줍니다.')),
     form,
-    h('button', { class: 'link', onclick: () => { loginMode = loginMode === 'in' ? 'up' : 'in'; render(); } },
-      loginMode === 'in' ? '계정이 없으면 만들기' : '이미 계정이 있으면 로그인'),
     OVERRIDE_REJECTED ? h('p', { class: 'note warn' }, OVERRIDE_NOTE) : null,
     IS_PRODUCTION ? null : h('p', { class: 'note warn' }, '테스트 서버: ' + CONFIG.api)));
 }
@@ -1007,7 +982,7 @@ function settingsView() {
             if (!email.value.trim()) { toast('이메일을 넣으세요.', true); return; }
             run('권한을 줬습니다', () => rpc('admin_grant', { p_email: email.value.trim(), p_target_id: scope.value || null }));
           } }, '권한 주기')),
-        h('p', { class: 'hint' }, '계정은 먼저 로그인 화면의 "계정이 없으면 만들기"나 Supabase 대시보드(Authentication → Users)에서 만들어야 합니다.'))),
+        h('p', { class: 'hint' }, '계정은 먼저 Supabase 대시보드(Authentication → Users → Add user)에서 만들어야 합니다.'))),
     logCard(state.log, '변경 기록'),
   ];
 }
