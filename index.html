@@ -117,6 +117,10 @@
   .badge.ok { background: var(--ok-soft); color: var(--ok); }
   .badge.warn { background: var(--warn-soft); color: var(--warn); }
   .badge.danger { background: var(--danger-soft); color: var(--danger); }
+  .badge.manual { margin-left: 8px; background: var(--accent-soft); color: var(--link); }
+  .toggle { display: inline-flex; gap: 4px; }
+  .toggle button[aria-pressed=true] { --b: var(--primary); --bh: var(--primary-hover); color: #fff; }
+  .toggle button[aria-pressed=true]:last-child { --b: #c62828; --bh: #c62828; }
   .chip { padding: 3px 6px 3px 12px; gap: 8px; color: var(--text); }
   .chip button { font-size: 12px; color: var(--sub); }
 
@@ -144,6 +148,7 @@
   }
   .slot b { font-size: 14px; font-weight: 600; }
   .slot small { font-size: 12.5px; color: var(--sub); }
+  .slot small.held { color: var(--warn); font-weight: 600; }
   .slot > i { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
   .slot.full { --b: var(--accent-soft); }
   .slot.full small { color: var(--link); font-weight: 600; }
@@ -228,6 +233,8 @@
     .people td:nth-child(3) { flex-basis: 100%; order: 3; }
     .people td.meta { order: 4; }
     .people td.meta::before { content: "예약한 때 "; }
+    .people td.att { order: 5; flex-basis: 100%; padding-top: 6px; }
+    .people td.undo { order: 6; }
     .log td:nth-child(4) { order: 1; }
     .log td:nth-child(3) { order: 2; color: var(--sub); }
     .log td:nth-child(5) { order: 3; }
@@ -273,6 +280,20 @@ const MESSAGES = {
   invalid_max_active: '최대 예약 수는 1 이상이어야 합니다.',
   account_not_found: '그 이메일로 가입한 계정이 없습니다. 먼저 계정을 만들어야 합니다.',
   cannot_revoke_self: '자기 운영진 권한은 뺄 수 없습니다.',
+  slot_not_found: '슬롯이 없어졌습니다. 새로고침한 뒤 다시 하세요.',
+  target_closed: '예약을 중단한 상태입니다. 예약을 재개한 뒤에 넣을 수 있습니다.',
+  slot_started: '이미 시작한 슬롯에는 예약을 넣을 수 없습니다.',
+  slot_not_open: '아직 예약이 열리지 않은 슬롯입니다. 오픈 시각을 바꾸면 넣을 수 있습니다.',
+  slot_full: '남은 자리가 없습니다.',
+  hold_expired: '잡아 둔 시간이 끝났습니다.',
+  not_manual: '수기로 넣은 예약만 여기서 취소할 수 있습니다.',
+  reservation_not_found: '예약이 없어졌습니다. 새로고침한 뒤 다시 하세요.',
+  invalid_name: '이름을 1–10자로 넣으세요.',
+  invalid_phone: '전화번호를 숫자 9–12자리로 넣으세요.',
+  visitor_name_mismatch: '이 전화번호는 다른 이름으로 등록돼 있습니다. 방문객이 앱·웹에서 쓴 이름으로 넣으세요.',
+  already_reserved_target: '이 방문객은 이 부스를 이미 예약했습니다.',
+  time_conflict: '이 방문객은 같은 시간에 다른 예약이 있습니다.',
+  visitor_limit_reached: '이 방문객은 예약할 수 있는 개수를 모두 썼습니다.',
   invalid_credentials: '이메일 또는 비밀번호가 맞지 않습니다.',
   email_not_confirmed: '이메일 확인이 끝나지 않았습니다. 받은 메일의 링크를 누른 뒤 다시 로그인하세요.',
   session_expired: '로그인이 만료됐습니다. 다시 로그인하세요.',
@@ -282,7 +303,7 @@ const MESSAGES = {
 const ACTIONS = {
   regenerate_slots: '시간표 다시 만들기', set_capacity: '정원 변경', set_opens_at: '오픈 시각 변경',
   set_experience_minutes: '체험 시간 변경', set_target_open: '예약 중단·재개', set_max_active: '최대 예약 수 변경',
-  grant: '권한 추가', revoke: '권한 회수',
+  grant: '권한 추가', revoke: '권한 회수', reserve: '수기 예약', cancel_reservation: '수기 예약 취소',
 };
 
 // ---------------------------------------------------------------------
@@ -437,7 +458,7 @@ async function signOut() {
 // ---------------------------------------------------------------------
 function initialState() {
   return {
-    me: null, targets: [], slots: [], reservations: [], accounts: [], log: [],
+    me: null, targets: [], slots: [], reservations: [], holds: [], accounts: [], log: [],
     selected: null, // 대상 id 또는 'settings'
     loadedAt: null, loadError: null,
     preview: null, // { key, result }
@@ -449,6 +470,9 @@ let state = initialState();
 const visibleTargets = () => state.targets.filter(target => state.me.is_organizer || state.me.target_ids.includes(target.id));
 const selectedTarget = () => state.targets.find(target => target.id === state.selected) || null;
 const slotsOf = target => state.slots.filter(slot => slot.target_id === target.id);
+const holdsOf = slot => state.holds.filter(hold => hold.slot_id === slot.id);
+// reserved_count 에는 수기 입력 중이라 잡아 둔 자리도 들어 있다. 사람 수는 그만큼 뺀다.
+const peopleOf = slot => Math.max(0, slot.reserved_count - holdsOf(slot).length);
 const targetTitle = id => (state.targets.find(target => target.id === id) || {}).title || '(지워진 대상)';
 
 function formFor(target) {
@@ -471,6 +495,7 @@ function select(id) {
   state.selected = id;
   state.preview = null;
   state.reservations = [];
+  state.holds = [];
   const target = selectedTarget();
   state.form = target ? formFor(target) : null;
 }
@@ -493,6 +518,11 @@ async function load() {
       const target = selectedTarget();
       const tasks = [rpc('admin_log', { p_limit: 100 }).then(log => { state.log = log; })];
       if (target) tasks.push(rpc('admin_reservations', { p_target_id: target.id }).then(list => { state.reservations = list; }));
+      // 수기 예약 마이그레이션(20261118100000 · 20261118130000)을 적용하기 전의 서버에서는 이 RPC 가 없다.
+      // 서버는 이 호출 때 만료된 잡아 두기도 치운다.
+      // 함수가 없다는 응답(404)만 넘어간다. 그 밖의 실패는 "불러오지 못했습니다"로 드러나야 한다.
+      if (target) tasks.push(rpc('admin_holds', { p_target_id: target.id }).then(list => { state.holds = list; },
+        error => { if (error.status !== 404) throw error; state.holds = []; }));
       if (state.me.is_organizer) tasks.push(rpc('admin_accounts').then(accounts => { state.accounts = accounts; }));
       await Promise.all(tasks);
     }
@@ -668,7 +698,7 @@ function stat(label, value, sub, extra) {
 
 function targetView(target) {
   const slots = slotsOf(target);
-  const reserved = slots.reduce((sum, slot) => sum + slot.reserved_count, 0);
+  const reserved = slots.reduce((sum, slot) => sum + peopleOf(slot), 0);
   const total = slots.reduce((sum, slot) => sum + slot.capacity, 0);
   const next = nextOpening(slots);
 
@@ -704,12 +734,12 @@ function slotsCard(target, slots) {
   return h('div', { class: 'card' },
     h('div', { class: 'card-head' },
       h('h3', {}, '시간대별 현황'),
-      h('span', { class: 'hint' }, '슬롯을 누르면 정원과 예약자를, 수정을 누르면 시간대의 오픈 시각·정원을 봅니다')),
+      h('span', { class: 'hint' }, '슬롯을 누르면 정원·예약자·수기 예약을, 수정을 누르면 시간대의 오픈 시각·정원을 봅니다')),
     slots.length ? null : h('p', { class: 'empty' }, '슬롯이 없습니다. 아래 시간표 설정에서 만드세요.'),
     blocks.length ? h('div', { class: 'blocks' }, blocks.map(block => {
       const opens = [...new Set(block.slots.map(slot => slot.opens_at))];
       const state_ = opens.length === 1 ? openState(opens[0]) : { text: '슬롯마다 오픈 시각이 다름', tone: 'warn' };
-      const reserved = block.slots.reduce((sum, slot) => sum + slot.reserved_count, 0);
+      const reserved = block.slots.reduce((sum, slot) => sum + peopleOf(slot), 0);
       const capacities = [...new Set(block.slots.map(slot => slot.capacity))];
       return h('div', { class: 'block' },
         h('div', { class: 'block-head' },
@@ -719,11 +749,13 @@ function slotsCard(target, slots) {
           h('button', { class: 'ghost small', 'aria-label': `${range(block.from, block.to)} 시간대 수정`, onclick: () => blockDialog(target, block) }, '수정')),
         h('div', { class: 'slots' }, block.slots.map(slot => {
           const full = slot.capacity !== null && slot.reserved_count >= slot.capacity;
+          const held = holdsOf(slot).length;
           const classes = ['slot', slot.capacity === 0 ? 'closed' : full ? 'full' : '', ms(slot.starts_at) <= now ? 'past' : '', isStray(target, slot) ? 'stray' : ''];
           const filled = slot.capacity ? Math.min(100, Math.round(slot.reserved_count / slot.capacity * 100)) : 0;
           return h('button', { class: classes.join(' '), title: isStray(target, slot) ? '예약이 있어 남은 이전 시간표 슬롯' : null, onclick: () => slotDialog(target, slot) },
             h('b', {}, range(slot.starts_at, slot.ends_at)),
-            h('small', {}, slot.capacity === 0 ? `닫힘 · 예약 ${slot.reserved_count}` : `${slot.reserved_count} / ${slot.capacity}명${full ? ' · 마감' : ''}`),
+            h('small', {}, slot.capacity === 0 ? `닫힘 · 예약 ${peopleOf(slot)}` : `${peopleOf(slot)} / ${slot.capacity}명${full && !held ? ' · 마감' : ''}`),
+            held ? h('small', { class: 'held' }, `수기 입력 중 ${held}`) : null,
             filled ? h('i', { style: `width:${filled}%` }) : null);
         })));
     })) : null,
@@ -839,16 +871,41 @@ function configCard(target) {
 
 function reservationsCard(target) {
   const list = state.reservations;
+  // 참석 기록 마이그레이션(20261118150000)을 적용하기 전의 서버는 attended 를 주지 않는다. 그때는 참석 칸을 숨긴다.
+  const tracked = list.some(item => 'attended' in item);
+  const count = value => list.filter(item => item.attended === value).length;
+  const now = Date.now();
+  const mark = (item, value, label) => h('button', {
+    class: 'small', 'aria-pressed': String(item.attended === value),
+    // 이미 고른 쪽을 다시 누르면 기록을 지운다.
+    onclick: () => run(null, () => rpc('admin_set_attendance', { p_reservation_id: item.reservation_id, p_attended: item.attended === value ? null : value })),
+  }, label);
   return h('div', { class: 'card' },
     h('div', { class: 'card-head' },
       h('h3', {}, `예약자 명단 (${list.length}명)`),
-      h('span', { class: 'hint' }, '확정 예약만, 시간순')),
+      h('span', { class: 'hint' }, tracked && list.length ? `참석 ${count(true)} · 불참 ${count(false)} · 미확인 ${count(null)}` : '확정 예약만, 시간순')),
     list.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'stack people' },
-      h('thead', {}, h('tr', {}, h('th', {}, '시간'), h('th', {}, '이름'), h('th', {}, '전화번호'), h('th', {}, '예약한 때'))),
+      h('thead', {}, h('tr', {}, h('th', {}, '시간'), h('th', {}, '이름'), h('th', {}, '전화번호'), h('th', {}, '예약한 때'), tracked ? h('th', {}, '참석') : null, tracked ? h('th') : null)),
       h('tbody', {}, list.map(item => h('tr', {},
-        h('td', {}, range(item.starts_at, item.ends_at)), h('td', { class: 'name' }, item.visitor_name),
-        h('td', {}, phone(item.visitor_phone)), h('td', { class: 'meta' }, stamp(item.created_at)))))))
-      : h('p', { class: 'empty' }, '아직 예약이 없습니다.'));
+        h('td', {}, range(item.starts_at, item.ends_at)),
+        h('td', { class: 'name' }, item.visitor_name, item.is_manual ? h('span', { class: 'badge manual' }, '수기') : null),
+        h('td', {}, phone(item.visitor_phone)), h('td', { class: 'meta' }, stamp(item.created_at)),
+        tracked ? h('td', { class: 'att' }, h('div', { class: 'toggle', role: 'group', 'aria-label': `${item.visitor_name} 참석 여부` }, mark(item, true, '참석'), mark(item, false, '불참'))) : null,
+        tracked ? h('td', { class: 'undo' }, item.is_manual && ms(item.starts_at) > now
+          ? h('button', { class: 'ghost small', 'aria-label': `${item.visitor_name} 수기 예약 취소`, onclick: () => cancelDialog(target, item) }, '예약 취소') : null) : null)))))
+      : h('p', { class: 'empty' }, '아직 예약이 없습니다.'),
+    tracked && list.length ? h('p', { class: 'hint' }, '참석·불참을 누르면 바로 저장되고, 고른 쪽을 다시 누르면 지워집니다. 예약 취소는 수기로 넣은 예약만 시작 전까지 할 수 있습니다.') : null);
+}
+
+function cancelDialog(target, item) {
+  const dialog = showDialog('수기 예약 취소', `${target.title} · ${range(item.starts_at, item.ends_at)}`,
+    h('p', {}, `${item.visitor_name} (${phone(item.visitor_phone)}) 님의 예약을 취소합니다. 자리는 바로 풀립니다.`),
+    h('div', { class: 'actions' },
+      h('button', { class: 'danger', onclick: async () => {
+        dialog.close();
+        await run('예약을 취소했습니다', () => rpc('admin_cancel_reservation', { p_reservation_id: item.reservation_id }));
+      } }, '예약 취소'),
+      h('button', { onclick: () => dialog.close() }, '닫기')));
 }
 
 function phone(digits) {
@@ -864,8 +921,8 @@ function showDialog(title, subtitle, ...children) {
       h('div', {}, h('h2', {}, title), h('p', { class: 'hint' }, subtitle)),
       h('button', { class: 'ghost icon', 'aria-label': '닫기', onclick: () => dialog.close() }, '✕')),
     h('div', { class: 'body' }, children));
-  dialog.addEventListener('close', () => { dialog.remove(); openDialog = null; });
-  dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', () => { dialog.remove(); if (openDialog === dialog) openDialog = null; });
+  dialog.addEventListener('click', event => { if (event.target === dialog && !dialog.dataset.keep) dialog.close(); });
   document.body.append(dialog);
   openDialog = dialog;
   dialog.showModal();
@@ -925,9 +982,10 @@ function slotDialog(target, slot) {
   const capacity = capacityInput(slot.capacity);
   const people = state.reservations.filter(item => item.slot_id === slot.id);
   const state_ = openState(slot.opens_at);
+  const blocked = manualBlocked(target, slot);
   const dialog = showDialog(
     range(slot.starts_at, slot.ends_at),
-    `${target.title} · 예약 ${slot.reserved_count}명 · ${state_.text}`,
+    `${target.title} · 예약 ${peopleOf(slot)}명 · ${state_.text}`,
     h('div', { class: 'section' },
       h('h4', {}, '이 슬롯 정원'),
       h('div', { class: 'inline' }, field('정원(명)', capacity),
@@ -943,7 +1001,109 @@ function slotDialog(target, slot) {
     h('div', { class: 'section' },
       h('h4', {}, `예약자 ${people.length}명`),
       people.length ? h('table', {}, h('tbody', {}, people.map(item => h('tr', {}, h('td', { class: 'name' }, item.visitor_name), h('td', {}, phone(item.visitor_phone))))))
-        : h('p', { class: 'empty' }, '예약자가 없습니다.')));
+        : h('p', { class: 'empty' }, '예약자가 없습니다.')),
+    h('div', { class: 'section' },
+      h('h4', {}, '수기 예약'),
+      h('p', { class: 'hint' }, blocked || '누르면 이 슬롯의 한 자리를 먼저 잡아 둡니다. 입력하는 동안 앱·웹에는 그 자리가 찬 자리로 보입니다.'),
+      h('div', { class: 'actions' }, h('button', { class: 'primary', disabled: Boolean(blocked), onclick: () => { dialog.close(); manualDialog(target, slot); } }, '수기 예약 시작'))));
+}
+
+// 수기 예약을 시작할 수 없는 까닭(없으면 null). 서버도 같은 규칙으로 거절한다.
+function manualBlocked(target, slot) {
+  if (!target.is_open) return MESSAGES.target_closed;
+  if (ms(slot.starts_at) <= Date.now()) return MESSAGES.slot_started;
+  if (slot.opens_at !== null && ms(slot.opens_at) > Date.now()) return MESSAGES.slot_not_open;
+  if (slot.capacity !== null && slot.reserved_count >= slot.capacity) {
+    return holdsOf(slot).length ? '남은 자리를 다른 화면에서 수기 입력 중입니다.' : MESSAGES.slot_full;
+  }
+  return null;
+}
+
+// ----- 수기 예약 -----
+// 입력을 시작할 때 자리를 잡아 두고(admin_hold_slot), 입력하는 동안 30초마다 늘리고, 화면을 닫으면 놓는다.
+// 잡아 둔 자리는 예약 수에 들어가 앱·웹에도 찬 자리로 보인다. 놓지 못하면 90초 뒤 만료되고 서버가 치운다
+// (30초마다 도는 예약 작업, 그리고 열려 있는 관리 화면이 10초마다 읽을 때).
+const HOLD_BEAT_MS = 30000;
+let activeHold = null;
+
+function releaseHold() {
+  const id = activeHold;
+  activeHold = null;
+  if (!id || !session) return;
+  // 창을 닫는 중에도 나가도록 keepalive 로 보낸다.
+  fetch(CONFIG.api + '/rest/v1/rpc/admin_release_hold', {
+    method: 'POST', keepalive: true,
+    headers: { apikey: CONFIG.key, Authorization: 'Bearer ' + session.accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_hold_id: id }),
+  }).catch(() => {});
+}
+window.addEventListener('pagehide', releaseHold);
+
+async function manualDialog(target, slot) {
+  let hold;
+  try {
+    hold = await rpc('admin_hold_slot', { p_slot_id: slot.id });
+  } catch (error) {
+    toast(explain(error), true);
+    refresh();
+    return;
+  }
+  activeHold = hold.hold_id;
+
+  const name = h('input', { type: 'text', maxlength: 10, autocomplete: 'off', required: true, placeholder: '이름 또는 닉네임' });
+  const number = h('input', { type: 'tel', inputmode: 'numeric', maxlength: 13, autocomplete: 'off', required: true, placeholder: '숫자만' });
+  const note = h('p', { class: 'note' }, '한 자리를 잡아 두었습니다. 이 창을 닫으면 놓습니다.');
+  const message = h('p', { class: 'note danger', role: 'alert' });
+  message.style.display = 'none';
+  const submit = h('button', { class: 'primary', type: 'submit' }, '예약 확정');
+  let reserved = false;
+
+  const form = h('form', {
+    onsubmit: async event => {
+      event.preventDefault();
+      if (submit.disabled) return;
+      submit.disabled = true;
+      message.style.display = 'none';
+      try {
+        await rpc('admin_reserve', { p_slot_id: slot.id, p_name: name.value, p_phone: number.value, p_hold_id: hold.hold_id });
+        reserved = true;
+        activeHold = null;
+        dialog.close();
+        toast(`${name.value.trim()} 님을 ${range(slot.starts_at, slot.ends_at)}에 예약했습니다`);
+      } catch (error) {
+        message.textContent = explain(error);
+        message.style.display = 'block';
+        submit.disabled = false;
+      }
+    },
+  },
+  h('div', { class: 'inline' }, field('이름(닉네임)', name), field('전화번호', number)),
+  h('p', { class: 'hint' }, '방문객이 앱·웹에서 이 예약을 보려면 같은 이름과 전화번호를 넣어야 합니다. 예약 규칙은 앱과 같습니다.'),
+  message,
+  h('div', { class: 'actions' }, submit, h('button', { type: 'button', onclick: () => dialog.close() }, '취소')));
+  form.style.display = 'grid';
+  form.style.gap = '14px';
+
+  const dialog = showDialog(`수기 예약 · ${range(slot.starts_at, slot.ends_at)}`, target.title, note, form);
+  dialog.dataset.keep = 'true'; // 바깥을 잘못 눌러 입력과 잡아 둔 자리를 잃지 않게
+  name.focus();
+
+  const beat = setInterval(async () => {
+    try {
+      await rpc('admin_extend_hold', { p_hold_id: hold.hold_id });
+    } catch (error) {
+      if (error.code !== 'hold_expired') return; // 연결 문제면 다음 번에 다시 해 본다
+      clearInterval(beat);
+      activeHold = null;
+      note.className = 'note warn';
+      note.textContent = '잡아 둔 시간이 끝났습니다. 자리가 남아 있으면 그대로 확정할 수 있습니다.';
+    }
+  }, HOLD_BEAT_MS);
+  dialog.addEventListener('close', () => {
+    clearInterval(beat);
+    if (!reserved) releaseHold();
+    refresh();
+  });
 }
 
 // ----- 전체 설정 (운영진) -----
@@ -1000,6 +1160,7 @@ function logDetail(entry) {
     case 'set_target_open': return detail.is_open ? '예약 재개' : '예약 중단';
     case 'set_max_active': return `${detail.max}건`;
     case 'grant': case 'revoke': return detail.email || '';
+    case 'reserve': case 'cancel_reservation': return `${range(detail.from, detail.to)} ${detail.name || ''}`;
     default: return '';
   }
 }
