@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#fafcff">
+<meta name="format-detection" content="telephone=no">
+<title>SHOWCASE 26 체험 예약</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<style>
+  /* 색·글자·간격은 iOS 앱 디자인 시스템(Foundation/DesignSystem) 값. 앱처럼 밝은 화면만 있다. */
+  :root {
+    --blue00: #fafcff; --blue01: #f5f8fe; --blue02: #c6d7fb; --blue03: #97b5f7; --blue04: #6794f4;
+    --accent: #3973f0; --blue06: #1154e4; --blue07: #0d42b4;
+    --gray00: #f1f4fc; --gray01: #e2e4e8; --gray02: #c6cad2; --gray03: #aab0bb; --gray04: #8e96a4; --gray06: #5b6371;
+    --main: #030e26; --body: #2e3238; --body2: #5b6371; --caption: #8e96a4; --bg: #fafcff; --red: #ff383c;
+    --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--gray00); color: var(--main);
+    font: 16px/1.2 Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; word-break: keep-all;
+  }
+  h1, h2, h3, p { margin: 0; }
+  button, input { font: inherit; color: inherit; }
+  button { appearance: none; border: 0; background: none; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  button:disabled { cursor: default; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  svg { display: block; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* 넓은 화면에서는 휴대폰 폭의 한 단으로 가운데에 둔다. */
+  #app { position: relative; max-width: 430px; min-height: 100vh; min-height: 100dvh; margin: 0 auto; background: var(--bg); display: flex; flex-direction: column; }
+  @media (min-width: 431px) { #app { box-shadow: 0 0 0 1px var(--gray01), 0 20px 60px rgba(3, 14, 38, .08); } }
+  .content { flex: 1; padding: 0 16px 24px; }
+
+  /* 상단: 홈은 로고 + 내 정보, 나머지는 뒤로 + 제목. */
+  .top { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; min-height: 54px;
+    padding: calc(var(--safe-top) + 5px) 16px 5px; background: rgba(250, 252, 255, .86); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+  /* 로고 그림 안쪽에 왼쪽 여백 17 이 있다. 앱과 같은 크기(192×28)로 두고 그만큼 당긴다. */
+  .top .logo { height: 28px; width: auto; display: block; margin-left: -15px; }
+  .top .profile { width: 44px; height: 44px; margin-right: -6px; display: grid; place-items: center; border-radius: 50%; }
+  .top .profile img { width: 33px; height: 33px; display: block; }
+  .nav { justify-content: center; }
+  .nav .title { text-align: center; font-weight: 600; line-height: 19px; max-width: calc(100% - 120px); }
+  .nav .title b, .nav .title span { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav .title b { color: #000; }
+  .nav .title span { color: var(--caption); margin-top: 1px; }
+  .round { position: absolute; bottom: 5px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--main);
+    background: rgba(255, 255, 255, .78); box-shadow: 0 2px 12px rgba(3, 14, 38, .09), inset 0 0 0 .5px rgba(3, 14, 38, .07); }
+  .round:active { background: var(--gray00); }
+  .round.left { left: 16px; }
+  .round.right { right: 16px; color: var(--gray06); }
+  .round.spin svg { animation: spin .7s linear infinite; }
+
+  /* 버튼 (DSButtonStyle) */
+  .btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; white-space: nowrap; transition: background-color .12s; }
+  .btn.bottom { width: 100%; min-height: 54px; padding: 0 16px; font-size: 17px; font-weight: 600; letter-spacing: -.43px; }
+  .btn.compact { min-width: 85px; min-height: 31px; padding: 0 15px; font-weight: 500; }
+  .btn.small { min-height: 31px; padding: 0 16px; font-weight: 600; }
+  .btn.accent { background: var(--accent); color: #fff; }
+  .btn.accent:active { background: var(--blue07); }
+  .btn.accent:disabled { background: var(--gray03); }
+  .btn.bordered { background: var(--blue00); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .btn.bordered:active { background: var(--blue01); }
+  .btn.tonal { background: var(--blue02); color: var(--main); }
+  .btn.tonal:active { background: var(--blue03); }
+  .btn.tonal-bordered { background: var(--blue02); color: var(--main); box-shadow: inset 0 0 0 1px var(--blue03); }
+  .btn.tonal-bordered:active { background: var(--blue03); }
+  .btn.danger { background: var(--blue00); color: var(--red); box-shadow: inset 0 0 0 1px var(--red); }
+  .btn.danger:active { background: #fff0f0; }
+  .btn .dots { display: inline-flex; gap: 5px; }
+  .btn .dots i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: blink 1s infinite both; }
+  .btn .dots i:nth-child(2) { animation-delay: .15s; }
+  .btn .dots i:nth-child(3) { animation-delay: .3s; }
+
+  /* 화면 아래에 붙는 버튼. 앱은 폭 343(좌우 29.5). */
+  .bottom-bar { position: sticky; bottom: 0; z-index: 2; display: grid; gap: 11px; padding: 18px 29.5px calc(var(--safe-bottom) + 14px);
+    background: linear-gradient(to top, var(--bg) 62%, rgba(250, 252, 255, 0)); }
+
+  /* 홈 */
+  .page-title { font-size: 18px; font-weight: 600; line-height: 24px; padding-top: 4px; }
+  .segmented { display: flex; gap: 4px; padding: 2px; margin-top: 16px; background: var(--blue02); border-radius: 999px; }
+  .segmented button { flex: 1; min-height: 34px; border-radius: 999px; font-size: 13.33px; font-weight: 500; letter-spacing: -.08px; }
+  .segmented button[aria-selected=true] { background: #fff; font-weight: 600; }
+  .list { display: grid; gap: 30px; padding-top: 24px; }
+  .card { display: flex; gap: 13px; align-items: flex-start; position: relative; }
+  .thumb { flex: none; width: 70px; height: 70px; border-radius: 18px; background: #e1e1e1; overflow: hidden; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card .text { flex: 1; min-width: 0; display: grid; gap: 6px; }
+  .card h3 { font-size: 18px; font-weight: 600; line-height: 21px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 28px; }
+  .card .desc { line-height: 22px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: 15px; line-height: 18px; color: var(--body); }
+  .meta span { display: inline-flex; align-items: center; gap: 2px; }
+  .meta svg { color: var(--gray06); }
+  .card .foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 31px; margin-top: 4px; }
+  .card .count.mine { font-weight: 500; color: var(--accent); }
+  .card .count.off { color: var(--caption); font-weight: 400; }
+  .more { position: absolute; top: -12px; right: -13px; width: 44px; height: 44px; display: grid; place-items: center; color: var(--gray06); border-radius: 50%; }
+  .menu { position: absolute; top: 26px; right: 0; z-index: 4; min-width: 190px; padding: 6px; border-radius: 16px; background: rgba(255, 255, 255, .96);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 10px 40px rgba(3, 14, 38, .18), 0 0 0 .5px rgba(3, 14, 38, .08);
+    transform-origin: top right; animation: pop .16s ease-out; }
+  .menu button { width: 100%; min-height: 44px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-radius: 10px; text-align: left; }
+  .menu button:active { background: var(--gray00); }
+  .menu button.destructive { color: var(--red); }
+
+  .message { display: grid; justify-items: center; gap: 7px; padding: 32px 16px; border-radius: 10px; background: var(--blue01); text-align: center; }
+  .message svg { color: var(--blue04); }
+  .message b { font-weight: 600; }
+  .message p { color: var(--body2); line-height: 22px; }
+  .message .btn { margin-top: 9px; }
+
+  .infobox { padding: 19px; border-radius: 10px; background: var(--blue01); display: grid; gap: 7px; }
+  .infobox.plain { background: var(--gray00); }
+  .infobox .head { display: flex; align-items: center; gap: 5px; font-weight: 600; }
+  .infobox svg { color: var(--blue04); }
+  .infobox p { color: var(--body2); line-height: 20px; }
+  .infobox.plain { display: flex; gap: 5px; align-items: flex-start; }
+
+  /* 시간 선택 (SlotPickerView) */
+  .picker { padding-top: 21px; display: grid; gap: 28px; }
+  .guide h2 { font-size: 18px; font-weight: 600; line-height: 25px; }
+  .legend { display: flex; gap: 12px; margin-top: 7px; font-size: 14px; color: var(--body2); }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend i { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--gray02); background: var(--blue00); }
+  .legend .selected i { background: var(--blue02); border-color: var(--blue03); }
+  .legend .closed i { background: var(--gray01); }
+  .blocks { display: grid; gap: 35px; }
+  .block { display: grid; gap: 16px; }
+  .block-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .block-head h3 { font-size: 18px; font-weight: 600; line-height: 28px; }
+  .block.locked h3 { color: var(--caption); }
+  .lock { display: inline-flex; align-items: center; gap: 3px; min-height: 28px; padding: 0 9.5px; border-radius: 999px; background: var(--gray00); font-size: 15px; color: var(--body); white-space: nowrap; }
+  .lock svg { color: var(--gray03); }
+  .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .cell { min-height: 58px; padding: 8px 2px; border-radius: 8px; border: 1px solid var(--gray02); background: var(--blue00);
+    display: grid; align-content: center; justify-items: center; gap: 2px; transition: background-color .15s, border-color .15s; }
+  .cell b { font-weight: 400; line-height: 19px; }
+  .cell small { font-size: 14px; line-height: 13px; color: var(--body2); }
+  .cell:active:not(:disabled) { opacity: .6; }
+  .cell[aria-pressed=true] { background: var(--blue02); border-color: var(--blue03); }
+  .cell[aria-pressed=true] b { font-weight: 500; }
+  .cell:disabled { background: var(--gray01); }
+  .cell:disabled b, .cell:disabled small { color: var(--caption); }
+  .cell[aria-pressed=true]:disabled { background: var(--blue02); }
+  .cell[aria-pressed=true]:disabled b { color: var(--main); }
+  @media (max-width: 340px) { .grid { gap: 8px; } }
+
+  /* 정보 입력 (VisitorFormView) */
+  .form { padding: 17px 0 0; display: grid; gap: 30px; }
+  .form.edit { padding-top: 20px; }
+  .heading h2 { font-size: 25px; font-weight: 600; line-height: 30px; }
+  .heading p { margin-top: 6px; color: var(--body2); line-height: 20px; }
+  .heading { margin-bottom: 21px; }
+  .field { display: grid; gap: 10px; }
+  .field label { font-weight: 600; }
+  .field label i { color: var(--red); font-style: normal; margin-left: 2px; }
+  .field .box { display: flex; align-items: center; gap: 8px; min-height: 50px; padding: 0 15px; border-radius: 5px; border: 1px solid var(--caption); background: var(--blue00); }
+  .field .box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .field input { flex: 1; min-width: 0; height: 48px; border: 0; background: none; outline: none; padding: 0; font-size: 16px; }
+  .field input::placeholder { color: var(--caption); opacity: 1; }
+  .field .box span { color: var(--caption); line-height: 20px; }
+  .note { display: flex; align-items: center; gap: 5px; min-height: 50px; padding: 8px 13px; border-radius: 10px; background: var(--blue01); color: var(--body2); font-size: 15px; letter-spacing: -.3px; }
+  .note svg { color: var(--blue04); }
+  .error { color: var(--red); line-height: 20px; }
+
+  /* 결과 (ResultView) */
+  .result { flex: 1; display: grid; align-content: center; justify-items: center; gap: 14px; padding: 40px 16px; text-align: center; }
+  .result h2 { font-size: 18px; font-weight: 600; line-height: 21px; color: #000; }
+  .result p { margin-top: 6px; color: var(--body2); line-height: 20px; white-space: pre-line; }
+  .result .summary { margin-top: 10px; display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; padding: 10px 16px; border-radius: 10px; background: var(--blue01); }
+  .badge { position: relative; width: 80px; height: 80px; border-radius: 50%; background: rgba(198, 215, 251, .6); display: grid; place-items: center; }
+  .badge img { width: 52px; height: 52px; display: block; }
+  .badge i { position: absolute; left: 50%; top: 50%; width: 4.4px; height: 10.56px; margin: -5.28px 0 0 -2.2px; border-radius: 1px; }
+
+  /* 확정 카드 (ConfirmCard) */
+  .scrim { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px 29px; background: rgba(23, 25, 28, .3); animation: fade .2s ease-out; overflow-y: auto; }
+  .sheet { position: relative; width: 100%; max-width: 344px; padding: 30px 29px; border-radius: 20px; background: var(--bg); display: grid; justify-items: center; gap: 40px; animation: rise .25s cubic-bezier(.2, .9, .3, 1); }
+  .sheet .close { position: absolute; left: 31.5px; top: 30.5px; width: 35px; height: 35px; border-radius: 50%; background: var(--gray01); color: var(--gray03); display: grid; place-items: center; }
+  .sheet .body { width: 100%; display: grid; gap: 29px; }
+  .sheet h2 { font-size: 18px; font-weight: 600; line-height: 21px; color: #000; text-align: center; }
+  .sheet .sub { margin-top: 5px; font-size: 15px; line-height: 18px; color: var(--body2); text-align: center; }
+  .rows { display: grid; gap: 6px; }
+  .rows div { display: flex; align-items: center; gap: 12px; line-height: 19px; color: var(--body); }
+  .rows svg { color: var(--gray06); }
+  .rows b { font-weight: 500; }
+  .sheet .buttons { display: grid; gap: 12px; }
+  .sheet.alert { gap: 22px; padding: 28px 24px 24px; }
+  .sheet.alert .buttons { width: 100%; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sheet.alert .btn.bottom { min-height: 48px; font-size: 16px; }
+
+  .spinner { width: 28px; height: 28px; margin: 80px auto 0; border-radius: 50%; border: 3px solid var(--blue02); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+  #toast { position: fixed; left: 50%; bottom: calc(var(--safe-bottom) + 96px); z-index: 20; transform: translateX(-50%); display: none; align-items: center; gap: 8px;
+    max-width: calc(100vw - 32px); padding: 15px 30px; border-radius: 8px; background: var(--gray04); color: #fff; white-space: nowrap; box-shadow: 0 8px 24px rgba(16, 19, 22, .2); animation: fade .2s; }
+  .dev { padding: 6px 16px; background: #fef3c7; color: #92400e; font-size: 13px; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(12px) scale(.97); } }
+  @keyframes pop { from { opacity: 0; transform: scale(.85); } }
+  @keyframes blink { 0%, 80%, 100% { opacity: .3; } 40% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" role="status"></div>
+<script src="booths.js"></script>
+<script>
+'use strict';
+
+// ---------------------------------------------------------------------
+// iOS 앱이 없는 방문객용 예약 페이지. 서버는 앱과 같은 예약 API(anon)만 쓴다.
+// 접속 정보는 앱(ReservationClient+Live.swift)·관리 화면과 같아야 한다.
+// 로컬 스택으로 볼 때: index.html?api=http://127.0.0.1:55321&key=<publishable key>
+// ---------------------------------------------------------------------
+const PRODUCTION = { api: 'https://etjabethpbbzlwvlazez.supabase.co', key: 'sb_publishable_1LsT_Pym_Q0M0mzfJOj7Gg_oMjX4Op4' };
+const query = new URLSearchParams(location.search);
+function localOverride() {
+  try {
+    const url = new URL(query.get('api'));
+    if (!['http:', 'https:'].includes(url.protocol) || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return null;
+    return { api: url.origin, key: query.get('key') || PRODUCTION.key };
+  } catch { return null; }
+}
+const CONFIG = (query.get('api') && localOverride()) || PRODUCTION;
+const IS_PRODUCTION = CONFIG.api === PRODUCTION.api;
+const BOOTHS = window.DASH_BOOTHS || {};
+
+// 앱과 같은 글자 수 제한(서버는 이름 1–30자, 전화번호 숫자 9–15자리).
+const NAME_LIMIT = 10;
+const PHONE_LIMIT = 12;
+// 주기적으로 다시 읽는 간격: 시간 선택 화면 30초, 홈 60초.
+const POLL_MS = 30000;
+
+// 앱의 ReservationError+Message.swift 와 같은 문구.
+const ERRORS = {
+  slot_full: '해당 시각은 이미 예약이 마감되었습니다\n예약을 처음부터 다시 진행해주세요',
+  slot_started: '이미 시작한 시간이에요\n다른 시간을 선택해주세요',
+  slot_not_open: '아직 예약이 열리지 않은 시간이에요\n오픈 시각 이후에 다시 시도해주세요',
+  target_closed: '지금은 이 체험을 예약할 수 없어요',
+  time_conflict: '같은 시간에 다른 예약이 있어요\n다른 시간을 선택해주세요',
+  already_reserved_target: '이미 이 체험을 예약했어요\n내 예약에서 예약을 변경할 수 있어요',
+  visitor_limit_reached: '예약할 수 있는 개수를 모두 사용했어요\n다른 예약을 취소한 뒤 다시 시도해주세요',
+  visitor_name_mismatch: '이 전화번호로 예약한 이름과 달라요\n내 정보를 확인해주세요',
+  phone_taken: '이미 다른 이름으로 등록된 전화번호예요',
+  invalid_name: '이름을 확인해주세요',
+  invalid_phone: '전화번호를 확인해주세요',
+  slot_not_found: '예약 정보가 바뀌었어요\n예약을 처음부터 다시 진행해주세요',
+  reservation_not_found: '예약 정보가 바뀌었어요\n예약을 처음부터 다시 진행해주세요',
+  target_mismatch: '예약 정보가 바뀌었어요\n예약을 처음부터 다시 진행해주세요',
+  unknown: '잠시 후 다시 시도해주세요',
+};
+const explain = code => ERRORS[code] || ERRORS.unknown;
+
+// ---------------------------------------------------------------------
+// 이 기기의 예약자. 앱이 기기에 저장해 두는 것과 같다: 창을 닫았다 열어도 같은 이름·전화번호로 이어진다.
+// 화면에는 다른 사람으로 새로 시작하는 길이 없고, 바꾸려면 "내 정보"에서 서버의 같은 예약자를 고친다.
+// 시크릿 창·다른 브라우저·사이트 데이터 삭제는 새 기기로 보인다(막으려면 문자 인증이 있어야 한다).
+// ---------------------------------------------------------------------
+// 쿠키에는 두지 않는다(쿠키는 이 페이지를 올린 서버로 요청마다 실려 간다).
+const VISITOR_KEY = 'dash-reserve:visitor:' + CONFIG.api;
+
+function validVisitor(value) {
+  return value && typeof value.name === 'string' && typeof value.phone === 'string' && value.name && /^\d{9,15}$/.test(value.phone)
+    ? { name: value.name, phone: value.phone } : null;
+}
+function loadVisitor() {
+  try { return validVisitor(JSON.parse(localStorage.getItem(VISITOR_KEY))); } catch { return null; }
+}
+function saveVisitor(visitor) {
+  state.visitor = visitor;
+  try { localStorage.setItem(VISITOR_KEY, JSON.stringify(visitor)); } catch { /* 저장소를 못 쓰면 이번 탭에서만 유지된다 */ }
+}
+
+// ---------------------------------------------------------------------
+// 시각. 브라우저 시간대와 상관없이 행사장(한국) 시각으로 보인다.
+// ---------------------------------------------------------------------
+const clockFormat = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const clock = value => clockFormat.format(new Date(value));
+const ms = value => Date.parse(value);
+
+// ---------------------------------------------------------------------
+// DOM
+// ---------------------------------------------------------------------
+function h(tag, props, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props || {})) {
+    if (value === null || value === undefined || value === false) continue;
+    if (key === 'class') node.className = value;
+    else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+    else if (key === 'value') node.value = value;
+    else if (value === true) node.setAttribute(key, '');
+    else node.setAttribute(key, value);
+  }
+  for (const child of children.flat(Infinity)) {
+    if (child === null || child === undefined || child === false) continue;
+    node.append(child instanceof Node ? child : String(child));
+  }
+  return node;
+}
+
+const ICONS = {
+  back: '<path d="M15 4.5 7.5 12l7.5 7.5" stroke-width="2.2"/>',
+  refresh: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.6 4.2v3.9h-3.9"/>',
+  clock: '<circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12H8.4"/>',
+  pin: '<circle cx="12" cy="6.4" r="3" fill="currentColor" stroke="none"/><path d="M12 9.4V21" stroke-width="2"/>',
+  calendar: '<rect x="3.6" y="5" width="16.8" height="14.6" rx="2.6"/><path d="M3.6 9.6h16.8"/><path d="M8 13.2h.01M12 13.2h.01M16 13.2h.01M8 16.4h.01M12 16.4h.01M16 16.4h.01" stroke-width="2.2"/>',
+  lock: '<rect x="5.5" y="10.6" width="13" height="10" rx="2.2" fill="currentColor" stroke="none"/><path d="M8.4 10.6V8a3.6 3.6 0 0 1 7.2 0v2.6" stroke-width="2"/>',
+  info: '<circle cx="12" cy="12" r="10" fill="currentColor" stroke="none"/><path d="M12 11v5.6" stroke="#fff" stroke-width="2.2"/><circle cx="12" cy="7.4" r="1.3" fill="#fff" stroke="none"/>',
+  xmark: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke-width="2"/>',
+  more: '<circle cx="12" cy="5" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.7" fill="currentColor" stroke="none"/>',
+  warning: '<path d="M12 4 2.8 19.6h18.4z"/><path d="M12 10v4.6"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/>',
+  check: '<circle cx="12" cy="12" r="10" fill="#fff" stroke="none"/><path d="M7.4 12.3l3.1 3.1 6.1-6.4" stroke="#8e96a4" stroke-width="2.2"/>',
+};
+function icon(name, size = 20) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = ICONS[name];
+  return svg;
+}
+
+let toastTimer;
+function toast(message) {
+  const node = document.getElementById('toast');
+  node.replaceChildren(icon('check', 20), message);
+  node.style.display = 'flex';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { node.style.display = 'none'; }, 2200);
+}
+
+// ---------------------------------------------------------------------
+// 서버 (PostgREST 를 fetch 로 직접 부른다)
+// ---------------------------------------------------------------------
+class ApiError extends Error {
+  constructor(code) { super(code); this.code = code; }
+}
+
+async function request(path, body) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(CONFIG.api + '/rest/v1/' + path, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: { apikey: CONFIG.key, Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+    if (!response.ok) throw new ApiError(data && ERRORS[data.message] ? data.message : 'unknown');
+    return data;
+  } catch (error) {
+    throw error instanceof ApiError ? error : new ApiError('unknown');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+const rpc = (name, params) => request('rpc/' + name, params || {});
+const identity = () => ({ p_name: state.visitor.name, p_phone: state.visitor.phone });
+
+// ---------------------------------------------------------------------
+// 상태
+// ---------------------------------------------------------------------
+const state = {
+  visitor: loadVisitor(),
+  tab: 'booths', // 'booths' | 'my'
+  targets: null, // 서버의 예약 대상(부스). null = 아직 못 읽음
+  summaries: {}, // 대상 id → { reserved, capacity }
+  homeFailed: false,
+  reservations: null, // 내 확정 예약. null = 아직 못 읽음
+  reservationsFailed: false,
+  slots: {}, // 대상 id → { list, failed, at }
+  pick: null, // 시간 선택 화면: { targetId, slotId } (slotId undefined = 아직 정하지 않음)
+  submitting: false,
+  refreshing: false,
+  menu: null, // ⋯ 메뉴가 열린 예약 id
+};
+
+const targetOf = id => (state.targets || []).find(target => target.id === id) || null;
+const boothName = target => (BOOTHS[target.id] || {}).name || target.title;
+const boothLocation = id => (BOOTHS[id] || {}).location || '';
+const myReservation = targetId => (state.reservations || []).find(item => item.target_id === targetId) || null;
+
+async function loadHome() {
+  try {
+    const [targets, summaries] = await Promise.all([
+      request('reservation_targets?select=id,title,is_open,experience_minutes,window_start,window_end&kind=eq.booth&order=title'),
+      rpc('reservation_summaries'),
+    ]);
+    state.targets = targets;
+    state.summaries = Object.fromEntries(summaries.map(row => [row.target_id, row]));
+    state.homeFailed = false;
+  } catch {
+    state.homeFailed = true;
+  }
+}
+
+async function loadReservations() {
+  if (!state.visitor) { state.reservations = []; return; }
+  const asked = state.visitor;
+  try {
+    const list = await rpc('my_reservations', identity());
+    if (asked !== state.visitor) return; // 읽는 사이 내 정보가 바뀌었다
+    state.reservations = list;
+    state.reservationsFailed = false;
+  } catch {
+    if (asked === state.visitor) state.reservationsFailed = true;
+  }
+}
+
+async function loadSlots(targetId) {
+  try {
+    const list = await request(`reservation_slots?select=id,starts_at,ends_at,capacity,reserved_count,opens_at&target_id=eq.${targetId}&order=starts_at`);
+    state.slots[targetId] = { list, failed: false, at: Date.now() };
+  } catch {
+    state.slots[targetId] = { list: (state.slots[targetId] || {}).list || null, failed: true, at: Date.now() };
+  }
+}
+
+// ---------------------------------------------------------------------
+// 이동. 주소는 #/ · #/booth/<id> · #/info/<id> · #/me, 확정 카드·결과·취소 확인은 history.state 에 둔다.
+// (뒤로 가기 버튼이 화면 한 단계씩 되돌아가고, 새로고침해도 결과 화면이 남는다.)
+// ---------------------------------------------------------------------
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+function route() {
+  const [, name, id] = location.hash.split('/');
+  if ((name === 'booth' || name === 'info') && UUID.test(id || '')) return { name, id };
+  if (name === 'me') return { name };
+  return { name: 'home' };
+}
+const view = () => history.state || {};
+const depth = () => view().i || 0;
+function push(hash, extra) { history.pushState({ i: depth() + 1, ...extra }, '', hash); entered(); }
+function replace(hash, extra) { history.replaceState({ i: depth(), ...extra }, '', hash); entered(); }
+function back() { if (depth() > 0) history.back(); else replace('#/'); }
+let goingHome = false;
+function home(tab) {
+  if (tab) state.tab = tab;
+  if (depth() > 0) { goingHome = true; history.go(-depth()); } else replace('#/');
+}
+window.addEventListener('popstate', () => {
+  // 처음 연 주소가 홈이 아니었으면 맨 앞 기록도 홈이 아니다.
+  if (goingHome) { goingHome = false; if (route().name !== 'home') { replace('#/'); return; } }
+  entered();
+});
+
+// 화면에 들어올 때: 필요한 것을 읽고 그린다.
+let screen = null;
+function entered() {
+  const current = route();
+  state.menu = null;
+  if (current.name !== 'booth') state.pick = null;
+  // 예약자가 없으면 정보 입력부터, 이미 있으면 정보 입력을 건너뛴다(정보 입력 화면으로 다른 사람이 될 수 없게).
+  if (current.name === 'booth' && !state.visitor) { replace('#/info/' + current.id); return; }
+  if (current.name === 'info' && state.visitor) { replace('#/booth/' + current.id); return; }
+  const next = `${current.name}:${current.id || ''}:${view().result ? 'result' : ''}`;
+  if (next !== screen) window.scrollTo(0, 0);
+  screen = next;
+  render();
+  if (!view().confirm && !view().cancel) refresh(current.name === 'booth' && !view().result ? false : true);
+}
+
+// 지금 화면의 내용을 다시 읽는다. quiet 가 아니면 새로고침 버튼이 돈다.
+// light(주기적 새로고침)는 바뀌기 쉬운 것만 읽는다: 홈은 부스·예약 수, 시간 선택은 슬롯.
+async function refresh(quiet, light) {
+  const current = route();
+  const tasks = [];
+  if (current.name === 'home' || (current.name === 'booth' && !light)) tasks.push(loadHome());
+  if ((current.name === 'home' || current.name === 'booth') && !light) tasks.push(loadReservations());
+  if (current.name === 'booth') tasks.push(loadSlots(current.id));
+  if (!tasks.length) return;
+  if (!quiet) { state.refreshing = true; render(); }
+  await Promise.all(tasks);
+  state.refreshing = false;
+  render();
+}
+
+// ---------------------------------------------------------------------
+// 화면
+// ---------------------------------------------------------------------
+const app = document.getElementById('app');
+let mounted = null; // 입력 화면은 다시 그리지 않는다(입력 중인 글자·조합이 날아간다)
+let unlockTimer;
+
+function render() {
+  const current = route();
+  const key = current.name + ':' + (current.id || '');
+  if ((current.name === 'info' || current.name === 'me') && mounted === key) return;
+  mounted = key;
+  clearTimeout(unlockTimer);
+  const screens = { home: homeView, booth: boothView, info: formView, me: formView };
+  const nodes = [IS_PRODUCTION ? null : h('div', { class: 'dev' }, '테스트 서버: ' + CONFIG.api), screens[current.name](current)];
+  app.replaceChildren(...nodes.flat(Infinity).filter(Boolean));
+  document.body.style.overflow = app.querySelector('.scrim') ? 'hidden' : '';
+}
+
+function topBar(title, subtitle, withRefresh) {
+  return h('header', { class: 'top nav' },
+    h('button', { class: 'round left', 'aria-label': '뒤로', onclick: back }, icon('back', 22)),
+    h('div', { class: 'title', role: 'heading', 'aria-level': '1' }, h('b', {}, title), subtitle ? h('span', {}, subtitle) : null),
+    withRefresh ? h('button', { class: 'round right' + (state.refreshing ? ' spin' : ''), 'aria-label': '새로고침', onclick: () => refresh(false) }, icon('refresh', 20)) : null);
+}
+
+function message(iconName, title, text, ...actions) {
+  return h('div', { class: 'message' }, icon(iconName, 26), h('b', {}, title), text ? h('p', {}, text) : null, actions);
+}
+
+function infoBox(title, text) {
+  return title
+    ? h('div', { class: 'infobox' }, h('div', { class: 'head' }, icon('info', 18), title), h('p', {}, text))
+    : h('div', { class: 'infobox plain' }, icon('info', 18), h('p', {}, text));
+}
+
+function thumbnail(id) {
+  const logo = (BOOTHS[id] || {}).logo;
+  return h('div', { class: 'thumb' }, logo ? h('img', { src: logo, alt: '', loading: 'lazy' }) : null);
+}
+
+// ----- 홈: 체험 부스 · 내 예약 -----
+
+function homeView() {
+  const count = (state.reservations || []).length;
+  const tab = (id, label) => h('button', { role: 'tab', 'aria-selected': String(state.tab === id), onclick: () => { state.tab = id; state.menu = null; render(); } }, label);
+  return [
+    h('header', { class: 'top' },
+      h('img', { class: 'logo', src: 'assets/logo_title.svg', alt: 'SHOWCASE 26' }),
+      h('button', { class: 'profile', 'aria-label': '내 정보', onclick: () => push('#/me') }, h('img', { src: 'assets/icon_person.png', alt: '' }))),
+    h('main', { class: 'content', onclick: () => { if (state.menu) { state.menu = null; render(); } } },
+      h('h1', { class: 'page-title' }, '체험 예약'),
+      h('div', { class: 'segmented', role: 'tablist' }, tab('booths', '체험 부스'), tab('my', count ? `내 예약 ${count}` : '내 예약')),
+      state.tab === 'booths' ? boothList() : reservationList()),
+  ];
+}
+
+function boothList() {
+  if (!state.targets) {
+    return state.homeFailed
+      ? h('div', { class: 'list' }, message('warning', '부스 정보를 불러오지 못했어요', '잠시 후 다시 시도해 주세요',
+        h('button', { class: 'btn small accent', onclick: () => refresh(false) }, '다시 시도')))
+      : h('div', { class: 'spinner', role: 'status', 'aria-label': '불러오는 중' });
+  }
+  if (!state.targets.length) return h('div', { class: 'list' }, message('calendar', '지금은 예약할 수 있는 체험이 없어요'));
+  return h('div', { class: 'list' }, state.targets.map(target => {
+    const booth = BOOTHS[target.id] || {};
+    const summary = state.summaries[target.id];
+    const mine = myReservation(target.id);
+    const started = mine && ms(mine.starts_at) <= Date.now();
+    const open = () => push((state.visitor ? '#/booth/' : '#/info/') + target.id);
+    let status, action;
+    if (mine) {
+      status = h('span', { class: 'count mine' }, `${clock(mine.starts_at)} 예약됨`);
+      action = started ? null : h('button', { class: 'btn compact tonal-bordered', onclick: open }, '예약 변경');
+    } else if (!summary || summary.capacity === null) {
+      // 앱도 정원 합이 없는 대상은 예약 버튼을 숨긴다.
+      status = h('span', { class: 'count off' }, '예약할 수 있는 시간이 없어요');
+    } else {
+      // 예약 수는 카드에 보이지 않는다(앱의 결정, docs/07 37번). 시간 선택 화면의 칸마다 보인다.
+      status = target.is_open ? h('span') : h('span', { class: 'count off' }, '지금은 예약을 받지 않아요');
+      action = h('button', { class: 'btn compact tonal', onclick: open }, '예약하기');
+    }
+    return h('article', { class: 'card' },
+      thumbnail(target.id),
+      h('div', { class: 'text' },
+        h('h3', {}, boothName(target)),
+        booth.summary ? h('p', { class: 'desc' }, booth.summary) : null,
+        h('div', { class: 'meta' },
+          target.window_start ? h('span', {}, icon('clock', 16), `${clock(target.window_start)} - ${clock(target.window_end)}`) : null,
+          booth.location ? h('span', {}, icon('pin', 16), booth.location) : null,
+          target.experience_minutes ? h('span', {}, `체험 ${target.experience_minutes}분`) : null),
+        h('div', { class: 'foot' }, status, action)));
+  }));
+}
+
+function reservationList() {
+  const list = state.reservations;
+  if (!state.visitor) {
+    return h('div', { class: 'list' }, message('calendar', '예약한 체험이 없어요', '체험 부스에서 예약하면 여기에 보여요. 앱이나 현장에서 이미 예약했다면 같은 이름과 전화번호를 넣어 확인할 수 있어요',
+      h('button', { class: 'btn small accent', onclick: () => push('#/me') }, '내 정보 입력')));
+  }
+  if (!list) {
+    return state.reservationsFailed
+      ? h('div', { class: 'list' }, message('warning', '예약 내역을 불러오지 못했어요', '잠시 후 다시 시도해 주세요',
+        h('button', { class: 'btn small accent', onclick: () => refresh(false) }, '다시 시도')))
+      : h('div', { class: 'spinner', role: 'status', 'aria-label': '불러오는 중' });
+  }
+  if (!list.length) return h('div', { class: 'list' }, message('calendar', '예약한 체험이 없어요', '체험 부스에서 예약하면 여기에 보여요'));
+  const now = Date.now();
+  return h('div', { class: 'list' }, list.map(item => {
+    const booth = BOOTHS[item.target_id] || {};
+    const editable = ms(item.starts_at) > now; // 시작한 예약은 서버가 변경·취소를 받지 않는다
+    return h('article', { class: 'card' },
+      thumbnail(item.target_id),
+      h('div', { class: 'text' },
+        h('h3', {}, booth.name || item.target_title),
+        booth.summary ? h('p', { class: 'desc' }, booth.summary) : null,
+        h('div', { class: 'meta' },
+          h('span', {}, icon('clock', 16), clock(item.starts_at)),
+          booth.location ? h('span', {}, icon('pin', 16), booth.location) : null)),
+      editable ? h('button', { class: 'more', 'aria-label': '더보기', 'aria-expanded': String(state.menu === item.reservation_id),
+        onclick: event => { event.stopPropagation(); state.menu = state.menu === item.reservation_id ? null : item.reservation_id; render(); } }, icon('more', 20)) : null,
+      state.menu === item.reservation_id ? h('div', { class: 'menu', role: 'menu' },
+        h('button', { role: 'menuitem', onclick: () => push('#/booth/' + item.target_id) }, '예약 변경', icon('calendar', 20)),
+        h('button', { role: 'menuitem', class: 'destructive', onclick: () => push('#/', { cancel: item.reservation_id }) }, '예약 취소', icon('xmark', 20))) : null);
+  }), view().cancel ? cancelDialog(view().cancel) : null);
+}
+
+function cancelDialog(id) {
+  const item = (state.reservations || []).find(entry => entry.reservation_id === id);
+  if (!item) return null;
+  const confirm = h('button', { class: 'btn bottom danger', onclick: async () => {
+    if (state.submitting) return;
+    state.submitting = true;
+    confirm.disabled = true;
+    try {
+      await rpc('cancel_reservation', { p_reservation_id: id, ...identity() });
+      state.reservations = state.reservations.filter(entry => entry.reservation_id !== id);
+      toast('예약을 취소했어요');
+    } catch {
+      toast('예약을 취소하지 못했어요');
+    }
+    state.submitting = false;
+    back();
+  } }, '예약 취소');
+  return h('div', { class: 'scrim', onclick: event => { if (event.target === event.currentTarget) back(); } },
+    h('div', { class: 'sheet alert', role: 'alertdialog', 'aria-modal': 'true', 'aria-label': '예약을 취소할까요?' },
+      h('div', {},
+        h('h2', {}, '예약을 취소할까요?'),
+        h('p', { class: 'sub' }, `${(BOOTHS[item.target_id] || {}).name || item.target_title} · ${clock(item.starts_at)}`)),
+      h('div', { class: 'buttons' }, h('button', { class: 'btn bottom bordered', onclick: back }, '닫기'), confirm)));
+}
+
+// ----- 시간 선택 -----
+
+// 쉬는 시간 없이 이어지고 오픈 시각이 같은 슬롯 묶음(앱의 SlotBlock).
+function blocksOf(slots) {
+  const blocks = [];
+  for (const slot of slots) {
+    const last = blocks.length ? blocks[blocks.length - 1] : null;
+    const previous = last ? last[last.length - 1] : null;
+    if (previous && ms(previous.ends_at) >= ms(slot.starts_at) && previous.opens_at === slot.opens_at) last.push(slot);
+    else blocks.push([slot]);
+  }
+  return blocks;
+}
+const lockedUntil = (block, now) => (block[0].opens_at !== null && ms(block[0].opens_at) > now ? ms(block[0].opens_at) : null);
+const isClosed = (slot, now) => (slot.capacity !== null && slot.reserved_count >= slot.capacity) || ms(slot.starts_at) <= now;
+
+function boothView(current) {
+  const result = view().result;
+  if (result) return resultView(current, result);
+
+  const target = targetOf(current.id);
+  const booth = BOOTHS[current.id] || {};
+  const entry = state.slots[current.id];
+  const slots = entry && entry.list;
+  const ready = Boolean(target && slots && state.reservations);
+  const mine = myReservation(current.id);
+  const original = mine ? mine.slot_id : null;
+  const paused = Boolean(target) && !target.is_open;
+  const now = Date.now();
+  const blocks = slots ? blocksOf(slots) : [];
+  const selectable = (slot, block) => !paused && !isClosed(slot, now) && lockedUntil(block, now) === null;
+
+  if (!state.pick || state.pick.targetId !== current.id) state.pick = { targetId: current.id, slotId: undefined };
+  if (ready && !view().confirm) {
+    if (state.pick.slotId === undefined) state.pick.slotId = original;
+    // 고른 슬롯이 그사이 마감됐으면 선택을 푼다(변경 중인 원래 슬롯은 남긴다).
+    const picked = state.pick.slotId;
+    if (picked && picked !== original && !blocks.some(block => block.some(slot => slot.id === picked && selectable(slot, block)))) state.pick.slotId = null;
+    if (paused) state.pick.slotId = original;
+  }
+  const selected = state.pick.slotId || null;
+
+  // 잠긴 묶음이 열리는 때에 맞춰 다시 읽는다.
+  const waits = blocks.map(block => lockedUntil(block, now)).filter(Boolean);
+  if (waits.length) unlockTimer = setTimeout(() => { if (!view().confirm) refresh(true); }, Math.min(Math.min(...waits) - now + 400, 2 ** 31 - 1));
+
+  const title = target ? boothName(target) : booth.name || '';
+  const place = booth.zone || booth.location || '';
+  const minutes = target && target.experience_minutes;
+  const subtitle = minutes ? `체험 소요시간 ${minutes}분${place ? ' - ' + place : ''}` : place;
+
+  let body;
+  if (ready && !slots.length) {
+    body = infoBox(null, '예약할 수 있는 시간이 없어요');
+  } else if (ready) {
+    body = h('div', { class: 'blocks' }, blocks.map(block => {
+      const locked = lockedUntil(block, now);
+      return h('section', { class: 'block' + (locked ? ' locked' : '') },
+        h('div', { class: 'block-head' },
+          h('h3', {}, `운영시간 ${clock(block[0].starts_at)} - ${clock(block[block.length - 1].ends_at)}`),
+          locked ? h('span', { class: 'lock' }, icon('lock', 15), `${clock(locked)} 오픈 예정`) : null),
+        h('div', { class: 'grid' }, block.map(slot => {
+          const on = selected === slot.id;
+          return h('button', { class: 'cell', 'aria-pressed': String(on), disabled: !selectable(slot, block),
+            onclick: () => { state.pick.slotId = on ? null : slot.id; render(); } },
+          h('b', {}, clock(slot.starts_at)),
+          slot.capacity === null ? null : h('small', {}, `${slot.reserved_count}/${slot.capacity}명`));
+        })));
+    }));
+  } else if ((entry && entry.failed && !slots) || (state.homeFailed && !target) || (state.reservationsFailed && !state.reservations)) {
+    body = message('warning', '예약 시간을 불러오지 못했어요', null, h('button', { class: 'btn small accent', onclick: () => refresh(false) }, '다시 시도'));
+  } else if (state.targets && !target) {
+    body = infoBox(null, '예약할 수 없는 체험이에요');
+  } else {
+    body = h('div', { class: 'spinner', role: 'status', 'aria-label': '불러오는 중' });
+  }
+
+  const submit = h('button', { class: 'btn bottom accent', disabled: !ready || !selected || selected === original || paused || state.submitting,
+    onclick: () => push(location.hash, { confirm: true }) }, mine ? '변경하기' : '예약하기');
+
+  return [
+    topBar(title, subtitle, true),
+    h('main', { class: 'content' },
+      h('div', { class: 'picker' },
+        h('div', { class: 'guide' },
+          h('h2', {}, '체험할 시간을 선택해 주세요'),
+          h('div', { class: 'legend', 'aria-hidden': 'true' },
+            h('span', {}, h('i'), '예약가능'), h('span', { class: 'selected' }, h('i'), '선택됨'), h('span', { class: 'closed' }, h('i'), '마감'))),
+        paused ? infoBox('지금은 예약을 받지 않아요', '오른쪽 위 새로고침을 누르면 다시 확인할 수 있어요') : null,
+        body)),
+    h('div', { class: 'bottom-bar' }, submit),
+    view().confirm && ready && selected ? confirmCard(current, target, slots.find(slot => slot.id === selected), mine) : null,
+  ];
+}
+
+function badge(confetti) {
+  // 색종이 위치·각도는 앱의 Confetti 와 같다(아이콘 중심 기준).
+  const pieces = [['#ff567a', -62.75, -21.9, -49.74], ['#3973f0', -72.04, 6.3, -130.14], ['#9740ff', 67.06, -28.5, -142.13], ['#ffc528', 79.73, 1.2, -45.69]];
+  return h('div', { class: 'badge', 'aria-hidden': 'true' },
+    h('img', { src: 'assets/icon_calendar.png', alt: '' }),
+    confetti ? pieces.map(([color, x, y, angle]) => h('i', { style: `background:${color};transform:translate(${x}px,${y}px) rotate(${angle}deg)` })) : null,
+    confetti ? h('i', { style: 'background:#ffc528;height:4.4px;margin-top:-2.2px;transform:translate(63.43px,23.7px) rotate(-45.69deg)' }) : null);
+}
+
+function confirmCard(current, target, slot, mine) {
+  if (!slot) return null;
+  const location_ = boothLocation(current.id);
+  const confirm = h('button', { class: 'btn bottom accent', disabled: state.submitting },
+    state.submitting ? h('span', { class: 'dots', 'aria-label': '처리 중' }, h('i'), h('i'), h('i')) : '확정하기');
+  confirm.addEventListener('click', () => submit(current, target, slot, mine));
+  const close = () => { if (!state.submitting) back(); };
+  const row = (iconName, label, value) => h('div', {}, icon(iconName, 20), h('span', {}, label), h('b', {}, value));
+  const card = h('div', { class: 'scrim', onclick: event => { if (event.target === event.currentTarget) close(); } },
+    h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': mine ? '예약을 변경하시겠습니까?' : '예약을 확정하시겠습니까?' },
+      h('button', { class: 'close', 'aria-label': '닫기', onclick: close }, icon('xmark', 17)),
+      badge(false),
+      h('div', { class: 'body' },
+        h('div', {},
+          h('h2', {}, mine ? '예약을 변경하시겠습니까?' : '예약을 확정하시겠습니까?'),
+          h('p', { class: 'sub' }, mine ? '선택한 시간으로 예약이 변경됩니다.' : '선택한 시간으로 예약이 확정됩니다.')),
+        h('div', { class: 'rows' },
+          row('calendar', '체험명', boothName(target)),
+          row('clock', '예약 시간', clock(slot.starts_at)),
+          location_ ? row('pin', '위치', location_) : null),
+        h('div', { class: 'buttons' }, confirm, h('button', { class: 'btn bottom bordered', onclick: close }, '변경하기')))));
+  return card;
+}
+
+async function submit(current, target, slot, mine) {
+  if (state.submitting) return;
+  state.submitting = true;
+  render();
+  const summary = { mode: mine ? 'change' : 'reserve', name: boothName(target), time: clock(slot.starts_at), place: boothLocation(current.id) };
+  let result;
+  try {
+    if (mine) await rpc('change_reservation', { p_reservation_id: mine.reservation_id, p_new_slot_id: slot.id, ...identity() });
+    else await rpc('reserve_slot', { p_slot_id: slot.id, ...identity() });
+    result = { ...summary, ok: true };
+  } catch (error) {
+    result = { ...summary, ok: false, code: error.code };
+  }
+  state.submitting = false;
+  state.pick = null;
+  // 결과는 확정 카드 기록을 대신한다(그 아래에 시간 선택 기록이 있다).
+  // 뒤로 가기로 확정 카드를 닫은 뒤에 응답이 오면 시간 선택 기록을 결과로 바꾼다.
+  result.over = Boolean(view().confirm);
+  if (route().name === 'booth' && route().id === current.id) replace(location.hash, { result });
+  else { render(); refresh(true); }
+}
+
+function resultView(current, result) {
+  const change = result.mode === 'change';
+  const title = result.ok
+    ? (change ? '예약이 변경되었습니다!' : '예약이 확정되었습니다!')
+    : (change ? '예약 변경에 실패하였습니다' : '예약 확정에 실패하였습니다');
+  const text = result.ok ? (change ? '선택한 시간으로 예약이 변경되었습니다' : '선택한 시간으로 예약이 완료되었습니다') : explain(result.code);
+  return [
+    h('main', { class: 'result' },
+      badge(result.ok),
+      h('div', {},
+        h('h2', {}, title),
+        h('p', {}, text),
+        result.ok ? h('div', { class: 'meta summary' },
+          h('span', {}, icon('calendar', 16), result.name), h('span', {}, icon('clock', 16), result.time),
+          result.place ? h('span', {}, icon('pin', 16), result.place) : null) : null)),
+    h('div', { class: 'bottom-bar' }, result.ok
+      ? h('button', { class: 'btn bottom accent', onclick: () => home('my') }, '확인 완료')
+      : [h('button', { class: 'btn bottom accent', onclick: () => {
+        state.pick = null;
+        delete state.slots[current.id];
+        if (result.over && depth() > 0) history.back(); else replace(location.hash, {});
+      } }, '다시 예약하기'),
+        h('button', { class: 'btn bottom bordered', onclick: () => home() }, '닫기')]),
+  ];
+}
+
+// ----- 정보 입력 · 내 정보 -----
+
+const normalizeName = text => text.replace(/\s+/g, ' ').trim();
+
+function formView(current) {
+  const editing = current.name === 'me';
+  const saved = state.visitor;
+  const name = h('input', { id: 'name', type: 'text', autocomplete: 'name', enterkeyhint: 'next', placeholder: '이름 또는 닉네임을 입력해주세요', value: saved ? saved.name : '' });
+  const phone = h('input', { id: 'phone', type: 'tel', inputmode: 'numeric', autocomplete: 'tel-national', enterkeyhint: 'done', placeholder: '‘_’ 없이 숫자만 입력해주세요', value: saved ? saved.phone : '' });
+  const nameCount = h('span', { 'aria-hidden': 'true' });
+  const phoneCount = h('span', { 'aria-hidden': 'true' });
+  const error = h('p', { class: 'error', role: 'alert' });
+  const submit = h('button', { class: 'btn bottom accent', type: 'submit', form: 'visitor' }, editing ? '저장하기' : '다음');
+  let busy = false;
+
+  const entered = () => {
+    const value = { name: normalizeName(name.value), phone: phone.value };
+    return value.name && value.phone.length >= 9 && value.phone.length <= PHONE_LIMIT ? value : null;
+  };
+  function update() {
+    nameCount.textContent = `${[...name.value].length}/${NAME_LIMIT}`;
+    phoneCount.textContent = `${phone.value.length}/${PHONE_LIMIT}`;
+    submit.disabled = busy || !entered();
+  }
+  // 한글을 조합하는 동안에는 자르지 않는다.
+  function limitName(event) {
+    if (!event.isComposing && [...name.value].length > NAME_LIMIT) name.value = [...name.value].slice(0, NAME_LIMIT).join('');
+    update();
+  }
+  name.addEventListener('input', limitName);
+  name.addEventListener('compositionend', () => limitName({ isComposing: false }));
+  name.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); phone.focus(); } });
+  phone.addEventListener('input', () => {
+    const digits = phone.value.replace(/\D/g, '').slice(0, PHONE_LIMIT);
+    if (digits !== phone.value) phone.value = digits;
+    update();
+  });
+
+  const form = h('form', { id: 'visitor', class: 'form' + (editing ? ' edit' : ''), novalidate: true, onsubmit: async event => {
+    event.preventDefault();
+    const value = entered();
+    if (!value || busy) return;
+    error.textContent = '';
+    if (!editing) {
+      // 앱처럼 "다음"을 누르는 때에 이 기기에 저장한다.
+      saveVisitor(value);
+      state.reservations = null;
+      replace('#/booth/' + current.id);
+      return;
+    }
+    if (saved && (saved.name !== value.name || saved.phone !== value.phone)) {
+      busy = true;
+      update();
+      try {
+        await rpc('update_visitor', { p_name: saved.name, p_phone: saved.phone, p_new_name: value.name, p_new_phone: value.phone });
+      } catch (failure) {
+        // 서버에 아직 없는 예약자(입력만 하고 예약한 적 없음)는 기기에만 저장한다.
+        if (failure.code !== 'reservation_not_found') {
+          busy = false;
+          update();
+          error.textContent = explain(failure.code).replace('\n', ' ');
+          return;
+        }
+      }
+    }
+    saveVisitor(value);
+    state.reservations = null;
+    toast('정보가 수정되었습니다');
+    setTimeout(() => { if (route().name === 'me') back(); }, 1100);
+  } },
+  editing
+    ? h('div', { class: 'note' }, icon('info', 18), '입력한 정보는 예약 확인 및 안내를 위해 사용됩니다.')
+    : h('div', { class: 'heading' }, h('h2', {}, '예약을 위해 정보를', h('br'), '입력해주세요'), h('p', {}, '입력한 정보는 예약 확인 및 안내를 위해 사용됩니다')),
+  h('div', { class: 'field' }, h('label', { for: 'name' }, '이름(닉네임)', h('i', { 'aria-hidden': 'true' }, '*')), h('div', { class: 'box' }, name, nameCount)),
+  h('div', { class: 'field' }, h('label', { for: 'phone' }, '전화번호', h('i', { 'aria-hidden': 'true' }, '*')), h('div', { class: 'box' }, phone, phoneCount)),
+  error,
+  editing
+    ? (saved ? null : infoBox('앱이나 현장에서 예약했다면', '예약할 때 쓴 이름과 전화번호를 넣으면 내 예약에서 확인하고 바꿀 수 있습니다'))
+    : infoBox('최초 1회만 입력하면 됩니다.', '입력하신 정보는 이 기기에 저장되어 다음 예약부터 자동으로 불러옵니다'));
+  update();
+
+  return [
+    topBar(editing ? '내 정보' : '정보 입력'),
+    h('main', { class: 'content' }, form),
+    h('div', { class: 'bottom-bar' }, submit),
+  ];
+}
+
+// ---------------------------------------------------------------------
+// 시작 · 주기적 새로고침(당겨서 새로고침 대신). 화면이 가려져 있으면 쉬고, 다시 보이면 바로 읽는다.
+// ---------------------------------------------------------------------
+function idle() {
+  const current = route();
+  return !document.hidden && !state.submitting && !view().confirm && !view().cancel && !view().result && (current.name === 'home' || current.name === 'booth');
+}
+let beat = 0;
+setInterval(() => {
+  beat += 1;
+  if (idle() && (route().name === 'booth' || beat % 2 === 0)) refresh(true, true);
+}, POLL_MS);
+document.addEventListener('visibilitychange', () => { if (idle()) refresh(true); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && (view().confirm || view().cancel) && !state.submitting) back(); });
+// 다른 탭에서 내 정보를 바꾸면 따라간다.
+window.addEventListener('storage', event => {
+  if (event.key !== VISITOR_KEY) return;
+  state.visitor = loadVisitor();
+  state.reservations = null;
+  if (idle()) refresh(true);
+});
+
+if (view().confirm || view().cancel) history.replaceState({ i: depth() }, '', location.hash); // 새로고침하면 확정 카드·취소 확인은 닫는다
+entered();
+</script>
+</body>
+</html>
