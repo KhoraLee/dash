@@ -280,6 +280,7 @@ const MESSAGES = {
   invalid_open_rule: '예약 오픈 규칙을 확인하세요. 묶음은 1–1440분, 리드는 0분 이상입니다.',
   invalid_experience_minutes: '체험 시간은 1–480분이어야 합니다.',
   invalid_max_active: '최대 예약 수는 1 이상이어야 합니다.',
+  invalid_enabled: '켜기·끄기 값이 없습니다.',
   account_not_found: '그 이메일로 가입한 계정이 없습니다. 먼저 계정을 만들어야 합니다.',
   cannot_revoke_self: '자기 운영진 권한은 뺄 수 없습니다.',
   slot_not_found: '슬롯이 없어졌습니다. 새로고침한 뒤 다시 하세요.',
@@ -306,6 +307,7 @@ const MESSAGES = {
 const ACTIONS = {
   regenerate_slots: '시간표 다시 만들기', set_capacity: '정원 변경', set_opens_at: '오픈 시각 변경',
   set_experience_minutes: '체험 시간 변경', set_target_open: '예약 중단·재개', set_max_active: '최대 예약 수 변경',
+  set_notifications: '알림톡 켜기·끄기',
   grant: '권한 추가', revoke: '권한 회수', reserve: '수기 예약', cancel_reservation: '예약 취소',
   update_visitor: '예약자 정보 수정',
 };
@@ -462,7 +464,7 @@ async function signOut() {
 // ---------------------------------------------------------------------
 function initialState() {
   return {
-    me: null, targets: [], slots: [], reservations: [], holds: [], accounts: [], log: [],
+    me: null, targets: [], slots: [], reservations: [], holds: [], accounts: [], log: [], notify: null,
     selected: null, // 대상 id 또는 'settings'
     loadedAt: null, loadError: null,
     preview: null, // { key, result }
@@ -528,6 +530,9 @@ async function load() {
       if (target) tasks.push(rpc('admin_holds', { p_target_id: target.id }).then(list => { state.holds = list; },
         error => { if (error.status !== 404) throw error; state.holds = []; }));
       if (state.me.is_organizer) tasks.push(rpc('admin_accounts').then(accounts => { state.accounts = accounts; }));
+      // 알림톡 마이그레이션(20261120120000)을 적용하기 전의 서버에는 이 RPC 가 없다(404). 그때는 카드를 숨긴다.
+      if (state.me.is_organizer) tasks.push(rpc('admin_notification_status').then(status => { state.notify = status; },
+        error => { if (error.status !== 404) throw error; state.notify = null; }));
       await Promise.all(tasks);
     }
     state.loadedAt = Date.now();
@@ -1149,6 +1154,44 @@ async function manualDialog(target, slot) {
 
 // ----- 전체 설정 (운영진) -----
 
+const NOTIFY_REASONS = {
+  expired: '30분 안에 못 보내 버림', reservation_changed: '예약이 바뀌어 리마인더 취소', visitor_changed: '번호를 고쳐 새로 보냄',
+  daily_cap: '하루 한도 초과', phone_cap: '번호당 한도 초과',
+};
+
+function notifyCard() {
+  const status = state.notify;
+  if (!status) return null;
+  const on = status.is_enabled;
+  const toggle = () => {
+    const dialog = showDialog(on ? '알림톡 끄기' : '알림톡 켜기', on ? '지금 켜져 있습니다' : '지금 꺼져 있습니다',
+      h('p', {}, on
+        ? '끄면 새 예약·취소에 알림톡을 보내지 않습니다. 끈 동안의 예약에는 나중에 다시 켜도 알림이 가지 않습니다.'
+        : '켜면 지금부터 들어오는 예약·취소와 리마인더(10분·3분 전)에 알림톡이 나갑니다. 켜기 전에 들어온 예약에는 확정 알림이 가지 않습니다.'),
+      h('div', { class: 'actions' },
+        h('button', { class: on ? 'danger' : 'primary', onclick: async () => {
+          dialog.close();
+          await run(on ? '알림톡을 껐습니다' : '알림톡을 켰습니다', () => rpc('admin_set_notifications', { p_enabled: !on }));
+        } }, on ? '끄기' : '켜기'),
+        h('button', { onclick: () => dialog.close() }, '닫기')));
+  };
+  const problems = status.problems || [];
+  return h('div', { class: 'card' },
+    h('div', { class: 'card-head' },
+      h('h3', {}, '알림톡 발송'),
+      h('span', { class: on ? 'badge dot ok' : 'badge dot warn' }, on ? '켜짐' : '꺼짐')),
+    h('div', { class: 'stats' },
+      stat('보낼 차례', `${status.waiting}건`, '발송기가 5초마다 가져갑니다'),
+      stat('보냄 (24시간)', `${status.sent}건`, status.last_sent_at ? `마지막 ${stamp(status.last_sent_at)}` : '아직 없음'),
+      stat('실패 (24시간)', `${status.failed}건`, '대행사가 거절'),
+      stat('건너뜀 (24시간)', `${status.skipped}건`, '보내지 않기로 함')),
+    problems.length ? h('ul', { class: 'hint' }, problems.map(item =>
+      h('li', {}, `${item.status === 'failed' ? '실패' : '건너뜀'} ${item.count}건 · ${NOTIFY_REASONS[item.reason] || item.reason || '이유 없음'}`))) : null,
+    h('p', { class: 'hint' }, `마지막으로 바꾼 때 ${stamp(status.updated_at)}. 보낼 차례가 계속 줄지 않으면 아카데미 Mac 의 발송기를 확인하세요.`),
+    h('div', { class: 'actions' },
+      h('button', { class: on ? 'danger' : 'primary', onclick: toggle }, on ? '알림톡 끄기' : '알림톡 켜기')));
+}
+
 function settingsView() {
   const max = h('input', { type: 'number', min: 1, id: 'max-active', value: String(state.me.max_active_per_visitor) });
   const email = h('input', { type: 'email', id: 'grant-email', placeholder: '가입한 이메일' });
@@ -1159,6 +1202,7 @@ function settingsView() {
     h('button', { class: 'link', title: '권한 빼기', 'aria-label': `${account.email} ${label} 권한 빼기`,
       onclick: () => run('권한을 뺐습니다', () => rpc('admin_revoke', { p_email: account.email, p_target_id: targetID })) }, '빼기'));
   return [
+    notifyCard(),
     h('div', { class: 'card' },
       h('div', {},
         h('h3', {}, '방문객 한 명이 동시에 가질 수 있는 예약 수'),
@@ -1200,6 +1244,7 @@ function logDetail(entry) {
     case 'set_experience_minutes': return detail.minutes === null ? '미정' : `${detail.minutes}분`;
     case 'set_target_open': return detail.is_open ? '예약 재개' : '예약 중단';
     case 'set_max_active': return `${detail.max}건`;
+    case 'set_notifications': return detail.is_enabled ? '켬' : '끔';
     case 'grant': case 'revoke': return detail.email || '';
     case 'reserve': case 'cancel_reservation': return `${range(detail.from, detail.to)} ${detail.name || ''}`;
     case 'update_visitor': return `${detail.from_name} ${phone(detail.from_phone)} → ${detail.name} ${phone(detail.phone)}`;
