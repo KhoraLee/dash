@@ -202,6 +202,8 @@
   .login form button { height: 42px; margin-top: 2px; }
   .login form p:empty { display: none; }
 
+  .people td.undo { white-space: nowrap; }
+  .people td.undo button + button { margin-left: 6px; }
   @media (max-width: 900px) {
     .fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .fields > .wide { grid-column: 1 / -1; }
@@ -290,6 +292,7 @@ const MESSAGES = {
   reservation_not_found: '예약이 없어졌습니다. 새로고침한 뒤 다시 하세요.',
   invalid_name: '이름을 1–10자로 넣으세요.',
   invalid_phone: '전화번호를 숫자 9–12자리로 넣으세요.',
+  phone_taken: '이 전화번호는 다른 방문객이 쓰고 있습니다.',
   visitor_name_mismatch: '이 전화번호는 다른 이름으로 등록돼 있습니다. 방문객이 앱·웹에서 쓴 이름으로 넣으세요.',
   already_reserved_target: '이 방문객은 이 부스를 이미 예약했습니다.',
   time_conflict: '이 방문객은 같은 시간에 다른 예약이 있습니다.',
@@ -304,6 +307,7 @@ const ACTIONS = {
   regenerate_slots: '시간표 다시 만들기', set_capacity: '정원 변경', set_opens_at: '오픈 시각 변경',
   set_experience_minutes: '체험 시간 변경', set_target_open: '예약 중단·재개', set_max_active: '최대 예약 수 변경',
   grant: '권한 추가', revoke: '권한 회수', reserve: '수기 예약', cancel_reservation: '수기 예약 취소',
+  update_visitor: '예약자 정보 수정',
 };
 
 // ---------------------------------------------------------------------
@@ -891,10 +895,12 @@ function reservationsCard(target) {
         h('td', { class: 'name' }, item.visitor_name, item.is_manual ? h('span', { class: 'badge manual' }, '수기') : null),
         h('td', {}, phone(item.visitor_phone)), h('td', { class: 'meta' }, stamp(item.created_at)),
         tracked ? h('td', { class: 'att' }, h('div', { class: 'toggle', role: 'group', 'aria-label': `${item.visitor_name} 참석 여부` }, mark(item, true, '참석'), mark(item, false, '불참'))) : null,
-        tracked ? h('td', { class: 'undo' }, item.is_manual && ms(item.starts_at) > now
-          ? h('button', { class: 'ghost small', 'aria-label': `${item.visitor_name} 수기 예약 취소`, onclick: () => cancelDialog(target, item) }, '예약 취소') : null) : null)))))
+        tracked ? h('td', { class: 'undo' },
+          h('button', { class: 'ghost small', 'aria-label': `${item.visitor_name} 이름·전화번호 수정`, onclick: () => editDialog(target, item) }, '수정'),
+          item.is_manual && ms(item.starts_at) > now
+            ? h('button', { class: 'ghost small', 'aria-label': `${item.visitor_name} 수기 예약 취소`, onclick: () => cancelDialog(target, item) }, '예약 취소') : null) : null)))))
       : h('p', { class: 'empty' }, '아직 예약이 없습니다.'),
-    tracked && list.length ? h('p', { class: 'hint' }, '참석·불참을 누르면 바로 저장되고, 고른 쪽을 다시 누르면 지워집니다. 예약 취소는 수기로 넣은 예약만 시작 전까지 할 수 있습니다.') : null);
+    tracked && list.length ? h('p', { class: 'hint' }, '참석·불참을 누르면 바로 저장되고, 고른 쪽을 다시 누르면 지워집니다. 이름·전화번호는 모든 예약에서 고칠 수 있고, 예약 취소는 수기로 넣은 예약만 시작 전까지 할 수 있습니다.') : null);
 }
 
 function cancelDialog(target, item) {
@@ -906,6 +912,41 @@ function cancelDialog(target, item) {
         await run('예약을 취소했습니다', () => rpc('admin_cancel_reservation', { p_reservation_id: item.reservation_id }));
       } }, '예약 취소'),
       h('button', { onclick: () => dialog.close() }, '닫기')));
+}
+
+function editDialog(target, item) {
+  const name = h('input', { type: 'text', maxlength: 10, autocomplete: 'off', required: true, value: item.visitor_name });
+  const number = h('input', { type: 'tel', inputmode: 'numeric', maxlength: 13, autocomplete: 'off', required: true, value: item.visitor_phone });
+  const message = h('p', { class: 'note danger', role: 'alert' });
+  message.style.display = 'none';
+  const submit = h('button', { class: 'primary', type: 'submit' }, '저장');
+  const form = h('form', {
+    onsubmit: async event => {
+      event.preventDefault();
+      if (submit.disabled) return;
+      submit.disabled = true;
+      message.style.display = 'none';
+      try {
+        await rpc('admin_update_visitor', { p_reservation_id: item.reservation_id, p_name: name.value, p_phone: number.value });
+        dialog.close();
+        toast('예약자 정보를 고쳤습니다');
+        refresh();
+      } catch (error) {
+        message.textContent = explain(error);
+        message.style.display = 'block';
+        submit.disabled = false;
+      }
+    },
+  },
+  h('div', { class: 'inline' }, field('이름(닉네임)', name), field('전화번호', number)),
+  h('p', { class: 'hint' }, '같은 방문객의 다른 부스 예약에도 같이 바뀝니다. 방문객은 바꾼 이름과 전화번호로 앱·웹에서 예약을 봅니다. 아직 나가지 않은 알림톡은 새 번호로 갑니다.'),
+  message,
+  h('div', { class: 'actions' }, submit, h('button', { type: 'button', onclick: () => dialog.close() }, '취소')));
+  form.style.display = 'grid';
+  form.style.gap = '14px';
+  const dialog = showDialog('예약자 정보 수정', `${target.title} · ${range(item.starts_at, item.ends_at)}`, form);
+  dialog.dataset.keep = 'true';
+  name.focus();
 }
 
 function phone(digits) {
@@ -1161,6 +1202,7 @@ function logDetail(entry) {
     case 'set_max_active': return `${detail.max}건`;
     case 'grant': case 'revoke': return detail.email || '';
     case 'reserve': case 'cancel_reservation': return `${range(detail.from, detail.to)} ${detail.name || ''}`;
+    case 'update_visitor': return `${detail.from_name} ${phone(detail.from_phone)} → ${detail.name} ${phone(detail.phone)}`;
     default: return '';
   }
 }
